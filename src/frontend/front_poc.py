@@ -1,18 +1,15 @@
-import io
 import os
 import zipfile
-from typing import Any, Callable, List, Optional
+from typing import Callable, List, Optional
 
 import streamlit as st
+from streamlit.runtime.uploaded_file_manager import UploadedFile
 
+import helper
 from backend.backend import Backend
 from frontend.logger import LogLevel, create_console, log
 from vars import PATH_CONFIG_FILE, PATH_TMP
 
-# Function to add a log entry
-
-
-# Detect app start
 if "app_just_started" not in st.session_state:
     print("-----------------")
     st.session_state.app_launched = True
@@ -37,7 +34,7 @@ st.title(TITLE)
 def add_layer_upload(
     name: str,
     label_upload: str,
-    event_action: Callable,
+    event_action: Callable[[UploadedFile], None],
     types_file: Optional[List[str]] = None,
     conditions: List[str] = list(),
 ) -> str:
@@ -45,15 +42,17 @@ def add_layer_upload(
     event_name = "event_" + name
     event_condition = "condition_" + name
 
+    # conditions
     if not all(st.session_state.get(cond) for cond in conditions):
         return event_condition
 
-    col1 = st.container(border=True)
-
     def on_change(*args, **kwargs):
-        # print(f"On change : {event_name}")
         st.session_state[event_name] = True
 
+    # container
+    col1 = st.container(border=True)
+
+    # uploader
     uploaded_file = col1.file_uploader(
         f"**{label_upload}**",
         type=types_file,
@@ -61,7 +60,8 @@ def add_layer_upload(
         on_change=on_change,
     )
 
-    if st.session_state.get(event_name, False) and uploaded_file is not None:
+    # on change and there is a new uploaded file
+    if st.session_state.get(event_name) and uploaded_file is not None:
         st.session_state[event_name] = False
         event_action(uploaded_file)
         log(LogLevel.INFO, f"Le fichier '{uploaded_file.name}' a été enregistré.")
@@ -70,30 +70,29 @@ def add_layer_upload(
     return event_condition
 
 
-def extract_zip_file(uploaded_file):
+def extract_zip_file(
+    uploaded_file: UploadedFile,
+) -> None:
     try:
-        with zipfile.ZipFile(io.BytesIO(uploaded_file.getvalue())) as zf:
-            zf.extractall(path=PATH_TMP)
+        helper.extract_zip_file(uploaded_file.getvalue(), PATH_TMP)
     except zipfile.BadZipFile:
         log(LogLevel.ERROR, "Le fichier enregistré n'est pas un fichier ZIP valide.")
 
 
-def dowload_config_file(uploaded_file):
-    with open(PATH_CONFIG_FILE, "wb") as f:
-        f.write(uploaded_file.getvalue())
+def dowload_config_file(uploaded_file: UploadedFile) -> None:
+    helper.write(uploaded_file.getvalue(), path_dst=PATH_CONFIG_FILE)
 
 
-def dowload_template_file(uploaded_file):
+def dowload_template_file(uploaded_file: UploadedFile) -> None:
     path = PATH_TMP / uploaded_file.name
-    with open(path, "wb") as f:
-        f.write(uploaded_file.getvalue())
+    helper.write(uploaded_file.getvalue(), path_dst=path)
     backend.set_template_path(str(path))
 
 
 def add_layer_download(
     name: str,
     label_button: str,
-    callback: Callable[[], Optional[str]],
+    fill_file_and_get_path: Callable[[], Optional[str]],
     conditions: List[str] = list(),
 ) -> str:
 
@@ -103,43 +102,47 @@ def add_layer_download(
     if not all(st.session_state.get(cond) for cond in conditions):
         return event_condition
 
+    def on_click():
+        st.session_state[event_path] = fill_file_and_get_path()
+
+    # container and sub containers
     container = st.container(border=True)
     col1, col2, col3 = container.columns(3, border=False)
 
-    def func():
-        st.session_state[event_path] = callback()
+    # action button
+    col1.button(label=label_button, on_click=on_click)
 
-    col1.button(label=label_button, on_click=func)
-
-    # Download button to serve the file
-    path = st.session_state.get(event_path, None)
+    path = st.session_state.get(event_path)
     if not path:
+        # the action button has not been clicked or something failed
         col2.markdown("**Pas de fichier généré**")
-    else:
-        filename = os.path.basename(path)
-        col2.markdown(f"**Fichier généré:** {filename}")
-        st.session_state[event_condition] = True
+        return event_condition
 
-        try:
-            with open(path, "rb") as f:
-                file_data = f.read()
-        except FileNotFoundError:
-            st.error(f"Fichier pas trouvé au chemin: {path}")
+    # the action button has been clicked and the path file given
+    filename = os.path.basename(path)
+    col2.markdown(f"**Fichier généré:** {filename}")
+    st.session_state[event_condition] = True
 
-        col3.download_button(
-            label="Télécharger",
-            data=file_data,
-            file_name=filename,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key=name + "_key",
-        )
+    try:
+        file_data = helper.read(path)
+    except FileNotFoundError:
+        st.error(f"Fichier pas trouvé au chemin: {path}")
+        return event_condition
+
+    # download button
+    col3.download_button(
+        label="Télécharger",
+        data=file_data,
+        file_name=filename,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
 
     return event_condition
 
 
-def extract_infos() -> Optional[str]:
+def extract_infos_from_tree_and_config_file() -> Optional[str]:
     try:
-        return backend.extract_infos()
+        return backend.extract_infos_from_tree_and_config_file()
     except Exception as e:
         log(LogLevel.ERROR, e.args[0])
         return None
@@ -170,7 +173,7 @@ config_cond = add_layer_upload(
 extract_infos_cond = add_layer_download(
     "extract_infos",
     label_button="Extraire infos",
-    callback=extract_infos,
+    fill_file_and_get_path=extract_infos_from_tree_and_config_file,
     conditions=[config_cond],
 )
 
@@ -185,7 +188,7 @@ template_cond = add_layer_upload(
 add_layer_download(
     "fill_template",
     label_button="Remplir modèle",
-    callback=fill_template,
+    fill_file_and_get_path=fill_template,
     conditions=[template_cond],
 )
 
