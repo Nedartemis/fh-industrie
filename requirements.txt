@@ -1,9 +1,12 @@
+
+ipywidgets
+pandas
 pdf2image
 pillow
 poppler-utils
 pytesseract
+python-docx
 python-dotenv
 requests
 tqdm
-pandas
-python-docx
+widgetsnbextension
