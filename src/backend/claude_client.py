@@ -1,3 +1,4 @@
+import os
 from typing import Any, Dict, List, Optional
 
 import requests
@@ -6,8 +7,11 @@ import requests
 class ClaudeClient:
     """A simple client for the Anthropic Claude API."""
 
-    def __init__(self, api_key: str):
+    def __init__(self, api_key: Optional[str] = None):
         """Initialize the Claude client with your API key."""
+        if api_key is None:
+            api_key = os.environ["CLAUDE_KEY"]
+
         self.api_key = api_key
 
         self.base_url = "https://api.anthropic.com/v1"

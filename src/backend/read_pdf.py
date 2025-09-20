@@ -6,8 +6,21 @@ from pdf2image import convert_from_path
 from tqdm import tqdm
 
 
+# TODO
+def is_scanned(pdf_path: str) -> bool:
+    return True
+
+
+def read_all_pdf(pdf_path: str):
+
+    if is_scanned(pdf_path):
+        return ocr_pdf(pdf_path)
+    else:
+        raise NotImplementedError("Reading a native pdf is not implemented.")
+
+
 def ocr_pdf(
-    pdf_path, pages: Optional[List[int]] = None, language="eng", dpi=300
+    pdf_path, pages: Optional[List[int]] = None, language="fra", dpi=300
 ) -> List[str]:
     """
     Performs OCR on a PDF and return the text.

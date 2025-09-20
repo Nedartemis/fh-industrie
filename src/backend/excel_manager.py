@@ -3,13 +3,14 @@ from typing import Tuple
 
 import openpyxl.cell.rich_text
 from openpyxl import load_workbook
+from openpyxl.worksheet.worksheet import Worksheet
 
 
 class ExcelManager:
 
     def __init__(self, path_excel):
         self.wb = load_workbook(path_excel, rich_text=True)
-        self.ws = self.wb.worksheets[0]
+        self.ws: Worksheet = self.wb.worksheets[0]
 
     @staticmethod
     def _change(input: str, key: str, value: str, count: int) -> Tuple[str, int]:
@@ -17,6 +18,13 @@ class ExcelManager:
         if output != input:
             count += 1
         return output, count
+
+    def get_worksheet(self, name: str) -> Worksheet:
+        if name not in self.wb.sheetnames:
+            raise RuntimeError(
+                f"The page worksheet named '{name}' does not exist or is does not have the right name."
+            )
+        return self.wb.worksheets[self.wb.sheetnames.index(name)]
 
     def replace_content(self, infos: dict, verbose: bool = True) -> None:
         n = 100

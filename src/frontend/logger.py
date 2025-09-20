@@ -3,6 +3,8 @@ from enum import Enum
 
 import streamlit as st
 
+log_enabled = False
+
 
 class LogLevel(Enum):
     INFO = 1
@@ -10,8 +12,14 @@ class LogLevel(Enum):
     ERROR = 3
 
 
+def enable_log() -> None:
+    global log_enabled
+
+    log_enabled = True
+
+
 def log(log_level: LogLevel, message: str):
-    if not st.session_state.get("app_launched"):
+    if not log_enabled or not st.session_state.get("app_launched"):
         return
 
     st.session_state.logs.append((log_level, time.strftime("%H:%M:%S"), message))
