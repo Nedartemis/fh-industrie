@@ -4,6 +4,8 @@ docs/
 outputs/
 notebooks/test.ipynb
 tmp/
+cache/
+test/
 
 
 # Byte-compiled / optimized / DLL files

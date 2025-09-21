@@ -1,4 +1,5 @@
 import tempfile
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import pytesseract
@@ -7,11 +8,11 @@ from tqdm import tqdm
 
 
 # TODO
-def is_scanned(pdf_path: str) -> bool:
+def is_scanned(pdf_path: Path) -> bool:
     return True
 
 
-def read_all_pdf(pdf_path: str):
+def read_all_pdf(pdf_path: Path):
 
     if is_scanned(pdf_path):
         return ocr_pdf(pdf_path)
@@ -20,7 +21,7 @@ def read_all_pdf(pdf_path: str):
 
 
 def ocr_pdf(
-    pdf_path, pages: Optional[List[int]] = None, language="fra", dpi=300
+    pdf_path: Path, pages: Optional[List[int]] = None, language="fra", dpi=300
 ) -> List[str]:
     """
     Performs OCR on a PDF and return the text.

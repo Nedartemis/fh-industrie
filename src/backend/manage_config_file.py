@@ -171,3 +171,12 @@ def _error_detection_config_file_extraction(
         files_infos_filtered[name_source] = e
 
     return files_path_filtered, files_infos_filtered
+
+
+if __name__ == "__main__":
+    from vars import PATH_CONFIG_FILE
+
+    files_path, files_infos = read_config_file(PATH_CONFIG_FILE)
+
+    print(f"files_path : {files_path}")
+    print(f"files_infos : {files_infos}")
