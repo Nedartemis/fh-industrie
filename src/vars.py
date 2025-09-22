@@ -1,14 +1,10 @@
 from pathlib import Path
 from typing import Callable
 
-import docs as docs_module
 import tmp as tmp_module
 
 # path
-try:
-    PATH_TMP = Path(tmp_module.__file__).parent
-except:
-    PATH_TMP = Path("tmp/")
+PATH_TMP = Path(tmp_module.__file__).parent
 
 PATH_ROOT = PATH_TMP.parent.resolve()
 
