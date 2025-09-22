@@ -6,7 +6,7 @@ from download_helper import read_data_conditionned
 from page import Page
 
 import frontend.helper
-from backend.fill_template import fill_template
+from backend.generation.fill_template import fill_template
 from frontend.description import build_description
 from frontend.upload_button import build_upload_button_one_file
 from vars import PATH_TMP

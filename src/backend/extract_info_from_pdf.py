@@ -6,7 +6,7 @@ from typing import Dict, List
 
 from backend.claude_client import ClaudeClient
 from backend.read_pdf import is_scanned, read_all_pdf
-from vars import DEFAULT_LOGGER, PATH_CACHE, PATH_TEST, PATH_TMP, TYPE_LOGGER
+from vars import DEFAULT_LOGGER, PATH_CACHE, PATH_ROOT, PATH_TEST, PATH_TMP, TYPE_LOGGER
 
 # ------------------- Public Method -------------------
 
@@ -49,8 +49,9 @@ def extract_info_from_pdf(
 
 
 def _get_pdf_pages(pdf_path: Path, log: TYPE_LOGGER):
-    label = pdf_path.stem
-    path_cache = PATH_CACHE / (label + ".json")
+    label = os.path.relpath(path=pdf_path.resolve(), start=PATH_ROOT)
+
+    path_cache = PATH_CACHE / (label.replace(os.sep, "|") + ".json")
 
     if path_cache.exists():
         # read from cache
@@ -122,9 +123,15 @@ def _extract_info_from_natural_language(
 # ------------------- Main -------------------
 
 if __name__ == "__main__":
-    extract_info_from_pdf(
-        claude_client=ClaudeClient(),
-        path_pdf=PATH_TEST
-        / "0- ARBORESCENCE DOSSIERS JUD/EXPERT/01 - Notes aux parties/Note n°1 - Visio Adm/TJ DIEPPE - MASSERE - Ordonnance du 05 06 2024.pdf",
-        names_infos=["lieu_expertise", "numero_rg", "date_reunion", "date_ordonnance"],
+
+    _get_pdf_pages(
+        PATH_TEST / "test_reading_pdf" / "native.pdf",
+        log=DEFAULT_LOGGER,
     )
+
+    # extract_info_from_pdf(
+    #     claude_client=ClaudeClient(),
+    #     path_pdf=PATH_TEST
+    #     / "0- ARBORESCENCE DOSSIERS JUD/EXPERT/01 - Notes aux parties/Note n°1 - Visio Adm/TJ DIEPPE - MASSERE - Ordonnance du 05 06 2024.pdf",
+    #     names_infos=["lieu_expertise", "numero_rg", "date_reunion", "date_ordonnance"],
+    # )
