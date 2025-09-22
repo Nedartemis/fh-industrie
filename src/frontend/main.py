@@ -52,10 +52,14 @@ pages_details: List[Tuple[DeltaGenerator, Page]] = list(zip(cols, pages))
 for col, page in pages_details:
     with col:
         # showcase the button of the active page
-        type = "primary" if st.session_state.page == page else "secondary"
+        type = (
+            "primary"
+            if st.session_state.page.get_name() == page.get_name()
+            else "secondary"
+        )
 
         # build button
-        pressed = st.button(page.get_name(), type=type)
+        pressed = col.button(page.get_name(), type=type, use_container_width=True)
 
         # change button
         if pressed and st.session_state.page != page:

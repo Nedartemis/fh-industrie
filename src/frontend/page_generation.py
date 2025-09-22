@@ -81,6 +81,7 @@ class PageGeneration(Page):
             label="Generate",
             on_click=generate,
             disabled=not filled_config_file or not template,
+            use_container_width=True,
         )
 
         # button download

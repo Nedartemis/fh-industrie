@@ -92,6 +92,7 @@ class PageExtraction(Page):
             label="Extraire",
             on_click=extract,
             disabled=not config_file or not documents,
+            use_container_width=True,
         )
 
         # button download extraction
