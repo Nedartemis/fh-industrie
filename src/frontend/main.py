@@ -5,16 +5,26 @@ sys.path.append("src/")
 
 import streamlit as st
 
+import file_helper
 from frontend import page_extraction, page_generation
+from vars import PATH_TMP
 
+# pages
 PAGE1 = "Extraction"
 PAGE2 = "Génération"
 
-# --- Initialize selected page in session state
+# launch
 if "page" not in st.session_state:
+    # Initialize selected page in session state
     st.session_state.page = PAGE1
 
-# --- Navigation Buttons at the Top (Rectangles)
+    # remove all
+    file_helper.rmtree(
+        PATH_TMP, rm_root=False, file_to_avoid_removing_at_the_root=["py"]
+    )
+
+
+# Navigation Buttons at the Top (Rectangles)
 st.markdown(
     """
 <style>

@@ -6,7 +6,7 @@ import streamlit as st
 from streamlit.runtime.uploaded_file_manager import UploadedFile
 
 import helper
-from backend.backend import Backend
+from backend.backend_main import Backend
 from frontend.logger import LogLevel, create_console, log
 from vars import PATH_CONFIG_FILE, PATH_TMP
 

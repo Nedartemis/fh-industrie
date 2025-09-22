@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 import streamlit as st
+from download_helper import read_data_conditionned
 
 import frontend.helper
 import io_helper
@@ -23,6 +24,7 @@ def _build_extraction_folder_path() -> Path:
 def build_page():
 
     if not "enable_download_extraction" in st.session_state:
+        st.session_state.infos_path_file = None
         st.session_state.enable_download_extraction = False
         st.session_state.count_extraction = 1
 
@@ -85,10 +87,9 @@ def build_page():
     )
 
     # button download extraction
-    data = (
-        io_helper.read(path_to_read=st.session_state.infos_path_file)
-        if st.session_state.enable_download_extraction
-        else b"The download should have not happened."
+    data = read_data_conditionned(
+        path=st.session_state.infos_path_file,
+        condition=st.session_state.enable_download_extraction,
     )
 
     col2.download_button(

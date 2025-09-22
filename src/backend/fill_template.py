@@ -12,7 +12,7 @@ from vars import DEFAULT_LOGGER, PATH_TMP, TYPE_LOGGER
 
 def fill_template(
     infos_path_file: Path, template_path: Path, log: TYPE_LOGGER = DEFAULT_LOGGER
-) -> str:
+) -> Path:
 
     # error detection
     if not infos_path_file.exists():
@@ -32,7 +32,7 @@ def fill_template(
         )
 
     # copy and filled the template
-    path_output = PATH_TMP / (template_path.stem + "_rempli" + template_path.suffix)
+    path_output = PATH_TMP / (template_path.stem + "_généré" + template_path.suffix)
 
     if template_path.suffix.endswith("xlsx"):
         log("Le modèle est un excel")
@@ -82,8 +82,9 @@ def _fill_template_docx(
 if __name__ == "__main__":
     from vars import PATH_TEMPLATE, PATH_TEST
 
+    path_test = PATH_TEST / "test_generation"
     fill_template(
-        infos_path_file=PATH_TEST / "fichier_configuration_rempli.xlsx",
-        template_path=PATH_TEMPLATE / "feuille_présence_modele.xlsx",
+        infos_path_file=path_test / "config_file.xlsx",
+        template_path=path_test / "feuille_présence_modele.xlsx",
         log=DEFAULT_LOGGER,
     )

@@ -4,10 +4,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 
 from backend.excel_manager import ExcelManager
 from frontend.logger import LogLevel
-from frontend.logger import log as front_log
-from vars import PATH_TMP
 
-OFFSET_COLUMN_INFO_VALUE = 9
+OFFSET_COLUMN_INFO_VALUE = 3
 TYPE_FILES_PATH = Dict[str, str]
 TYPE_FILES_INFOS = Dict[str, List[Tuple[str, str]]]
 
@@ -24,10 +22,11 @@ class InfoToExtractData:
 
 
 def read_config_file(
-    path_config_file: Path,
+    path_config_file: Path, path_folder_sources: Path
 ) -> Tuple[TYPE_FILES_PATH, TYPE_FILES_INFOS]:
 
     # open the excel
+    print(path_config_file)
     em = ExcelManager(path_config_file)
 
     # read the source page : read the label and the path of each file
@@ -38,7 +37,7 @@ def read_config_file(
 
     # -- error detection (files not supported, ...)
     files_path, files_infos = _error_detection_config_file_extraction(
-        files_path_all, files_infos_all
+        files_path_all, files_infos_all, path_folder_sources
     )
 
     return files_path, files_infos
@@ -47,7 +46,11 @@ def read_config_file(
 def read_config_file_files_infos_values(em: ExcelManager) -> Dict[str, str]:
 
     infos_all_details = _manage_config_file_info_page(em)
-    return {info.name: info.value for info in infos_all_details if info.value}
+    return {
+        info.name: info.value
+        for info in infos_all_details
+        if info.value and info.value != "None"
+    }
 
 
 def fill_config_file(path_config_file: Path, infos: dict, path_output: Path) -> None:
@@ -75,19 +78,18 @@ def _manage_config_file_info_page(
 
     infos: List[InfoToExtractData] = []
 
-    column, current_row = 2, 3
-    while True:
+    column = 2
+    for current_row in range(1, len(ws.row_dimensions)):
         # retrieve metadata and data of the info
         info = InfoToExtractData(
-            name=ws.cell(current_row, column).value,
-            desciption=ws.cell(current_row, column + 1).value,
-            label_source=ws.cell(current_row, column + 2).value,
-            value=ws.cell(current_row, column + OFFSET_COLUMN_INFO_VALUE).value,
+            name=em.get_text(ws, current_row, column),
+            desciption=em.get_text(ws, current_row, column + 1),
+            label_source=em.get_text(ws, current_row, column + 2),
+            value=em.get_text(ws, current_row, column + OFFSET_COLUMN_INFO_VALUE),
         )
 
-        # no more info
-        if not info.name:
-            break
+        if info.name is None:
+            continue
 
         # store infos
         infos.append(info)
@@ -96,8 +98,6 @@ def _manage_config_file_info_page(
         info_to_write = get_info_value_to_write(info.name)
         if info_to_write is not None:
             ws.cell(current_row, column + OFFSET_COLUMN_INFO_VALUE, value=info_to_write)
-
-        current_row += 1
 
     return infos
 
@@ -126,6 +126,9 @@ def _read_config_file_files_infos_per_label(em: ExcelManager) -> TYPE_FILES_INFO
     files_infos = {}
     for info in infos:
 
+        if info.value is not None and info.value != "None":
+            continue
+
         if not info.label_source in files_infos:
             files_infos[info.label_source] = []
 
@@ -135,24 +138,27 @@ def _read_config_file_files_infos_per_label(em: ExcelManager) -> TYPE_FILES_INFO
 
 
 def _error_detection_config_file_extraction(
-    files_path: TYPE_FILES_PATH, files_infos: TYPE_FILES_INFOS
+    files_path: TYPE_FILES_PATH,
+    files_infos: TYPE_FILES_INFOS,
+    path_folder_sources: Path,
 ) -> Tuple[TYPE_FILES_PATH, TYPE_FILES_INFOS]:
 
     # check and filter files path
     files_path_filtered = {}
     for name_source, path in files_path.items():
         if not path.endswith(".pdf"):
-            front_log(
+            p = Path(path)
+            print(
                 LogLevel.ERROR,
-                f"L'extension '{Path(path).suffix}' n'est pas supporté en extraction d'information",
+                f"L'extension '{p.suffix}' du fichier '{p.name}' n'est pas supporté en extraction d'information",
             )
-        elif not (PATH_TMP / path).exists():
-            front_log(
+        elif not (path_folder_sources / path).exists():
+            print(
                 LogLevel.ERROR,
                 f"Le fichier {path} n'existe pas dans l'arbre de fichier donné.",
             )
         elif not name_source in files_infos.keys():
-            front_log(
+            print(
                 LogLevel.WARNING,
                 f"Aucune information est à extraire de la source de fichier '{name_source}'.",
             )
@@ -163,9 +169,9 @@ def _error_detection_config_file_extraction(
     files_infos_filtered = {}
     for name_source, e in files_infos.items():
         if name_source not in files_path:
-            front_log(
+            print(
                 LogLevel.ERROR,
-                f"La source '{name_source}' n'a pas de chemin d'accès valide dans l'arborescence.",
+                f"Le label '{name_source}' n'est pas une source présente dans la page des sources.",
             )
             continue
         files_infos_filtered[name_source] = e

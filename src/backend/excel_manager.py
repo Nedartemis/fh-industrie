@@ -19,6 +19,14 @@ class ExcelManager:
             count += 1
         return output, count
 
+    @classmethod
+    def get_text(cls, ws: Worksheet, row: int, col: int) -> str:
+        return cls.get_text_cell(ws.cell(row, col).value)
+
+    @staticmethod
+    def get_text_cell(cell_value) -> str:
+        return str(cell_value)
+
     def get_worksheet(self, name: str) -> Worksheet:
         if name not in self.wb.sheetnames:
             raise RuntimeError(
@@ -70,3 +78,19 @@ class ExcelManager:
 
     def save(self, path_excel) -> None:
         self.wb.save(path_excel)
+
+
+def _main():
+    from vars import PATH_TEST
+
+    # check if the conversion of CellRichText to str is good
+    em = ExcelManager(PATH_TEST / "test_celine" / "fichier_configuration.xlsx")
+    ws = em.get_worksheet("Infos à extraire")
+    for row in range(1, len(ws.row_dimensions)):
+        cell_value = ws.cell(row, column=2).value
+        s = em.get_text_cell(cell_value)
+        print(type(cell_value), cell_value, s)
+
+
+if __name__ == "__main__":
+    _main()

@@ -15,8 +15,10 @@ def extract_infos_from_tree_and_config_file(
 
     print("Reading config file...")
 
-    path_config_file = path_config_file
-    files_path, files_infos = read_config_file(path_config_file)
+    files_path, files_infos = read_config_file(path_config_file, path_folder_sources)
+
+    print(files_path)
+    print(files_infos)
 
     print("Extracting infos...")
 
@@ -42,8 +44,8 @@ def extract_infos_from_tree_and_config_file(
 
     print(f"{len(all_infos)} informations ont été extraites avec succès.")
 
-    # copy config file
-    info_path_file = PATH_TMP / "fichier_configuration_rempli.xlsx"
+    # copy and fill config file
+    info_path_file = path_folder_sources / f"{path_config_file.stem}_rempli.xlsx"
     fill_config_file(path_config_file, infos=all_infos, path_output=info_path_file)
 
     # return the file containing the infos
@@ -53,6 +55,8 @@ def extract_infos_from_tree_and_config_file(
 if __name__ == "__main__":
     from vars import PATH_TEST
 
+    path_test = PATH_TEST / "test_celine"
     extract_infos_from_tree_and_config_file(
-        PATH_TEST / "config_file.xlsx", path_folder_sources=PATH_TEST
+        path_test / "fichier_configuration_rempli.xlsx",
+        path_folder_sources=path_test,
     )

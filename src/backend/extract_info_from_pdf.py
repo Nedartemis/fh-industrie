@@ -25,7 +25,7 @@ def extract_info_from_pdf(
     new_infos = _extract_info_from_natural_language(
         claude_client=claude_client,
         names_infos=names_infos,
-        text="\n\n".join(pages[:1]),
+        text="\n\n".join(pages[:]),
         log=log,
     )
 
@@ -56,12 +56,12 @@ def _get_pdf_pages(pdf_path: Path, log: TYPE_LOGGER):
         # read from cache
         with open(str(path_cache), mode="r") as f:
             pages = json.load(f)
-        log(f"'{label}' chargé depuis le cache.")
+        log(f"'{pdf_path.name}' chargé depuis le cache.")
     else:
         # read pdf
         pages = read_all_pdf(pdf_path)
         log(
-            f"'{label}' a été lu et est un pdf {'scanné' if is_scanned(pdf_path) else 'natif'}."
+            f"'{pdf_path.name}' a été lu et est un pdf {'scanné' if is_scanned(pdf_path) else 'natif'}."
         )
 
         # save into cache
@@ -74,6 +74,9 @@ def _get_pdf_pages(pdf_path: Path, log: TYPE_LOGGER):
 def _extract_info_from_natural_language(
     claude_client: ClaudeClient, names_infos: List[str], text: str, log: TYPE_LOGGER
 ) -> Dict[str, str]:
+
+    if not text:
+        return {}
 
     # build prompt
     format_infos = (
@@ -100,7 +103,7 @@ def _extract_info_from_natural_language(
 
     # extract the infos
     text_infos = response["content"][0]["text"]
-    log(f"text_infos : {text_infos}")
+    # log(f"text_infos : {text_infos}")
     res = re.search(pattern="```json(.*)```", string=text_infos, flags=re.DOTALL)
     extracted_str = res.group(1)
     log(f"extracted_str : {extracted_str}")
