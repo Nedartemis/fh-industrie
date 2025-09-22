@@ -3,6 +3,7 @@ from pathlib import Path
 
 import streamlit as st
 from download_helper import read_data_conditionned
+from page import Page
 
 import frontend.helper
 import io_helper
@@ -21,81 +22,88 @@ def _build_extraction_folder_path() -> Path:
     return PATH_TMP / f"extraction-{st.session_state.count_extraction}"
 
 
-def build_page():
+class PageExtraction(Page):
 
-    if not "enable_download_extraction" in st.session_state:
+    def get_name(self):
+        return "Extraction"
+
+    def reset(self):
         st.session_state.infos_path_file = None
         st.session_state.enable_download_extraction = False
-        st.session_state.count_extraction = 1
 
-        while _build_extraction_folder_path().exists():
-            st.session_state.count_extraction += 1
+    def build_page(self):
 
-    # description
-    build_description(
-        content="""
-        A partir
-        - d'un **fichier de configuration** précisant quelles informations extraire et où les chercher,
-        - de **documents** contenant les informations,
+        if not "count_extraction" in st.session_state:
+            st.session_state.count_extraction = 1
 
-        cette page permet d'**extraire** des informations et de les stocker dans un fichier excel.
-        """
-    )
+            while _build_extraction_folder_path().exists():
+                st.session_state.count_extraction += 1
 
-    # uploaders
-    def on_change_uploaded_files():
-        st.session_state.enable_download_extraction = False
+        # description
+        build_description(
+            content="""
+            A partir
+            - d'un **fichier de configuration** précisant quelles informations extraire et où les chercher,
+            - de **documents** contenant les informations,
 
-    config_file = build_upload_button_one_file(
-        "fichier de configuration", type="xlsx", on_change=on_change_uploaded_files
-    )
-
-    documents = build_upload_button_multiple_files(
-        "documents", type=["pdf", "xlsx", "zip"], on_change=on_change_uploaded_files
-    )
-
-    # extraction
-    col1, col2 = frontend.helper.columns(2)
-
-    def extract():
-        assert config_file is not None
-        assert documents != []
-
-        # create folder of the extraction
-        dir_extraction = _build_extraction_folder_path()
-        os.makedirs(dir_extraction)
-
-        # create symbolic links
-        for doc in documents:
-            os.symlink(src=doc.path, dst=dir_extraction / doc.name)
-
-        # call the backend for extraction
-        infos_file_path = extract_infos_from_tree_and_config_file(
-            path_config_file=config_file.path, path_folder_sources=dir_extraction
+            cette page permet d'**extraire** des informations et de les stocker dans un fichier excel.
+            """
         )
 
-        # update global variables
-        st.session_state.infos_path_file = infos_file_path
-        st.session_state.enable_download_extraction = True
-        st.session_state.count_extraction += 1
+        # uploaders
+        def on_change_uploaded_files():
+            st.session_state.enable_download_extraction = False
 
-    # button extraction
-    col1.button(
-        label="Extraire",
-        on_click=extract,
-        disabled=not config_file or not documents,
-    )
+        config_file = build_upload_button_one_file(
+            "fichier de configuration", type="xlsx", on_change=on_change_uploaded_files
+        )
 
-    # button download extraction
-    data = read_data_conditionned(
-        path=st.session_state.infos_path_file,
-        condition=st.session_state.enable_download_extraction,
-    )
+        documents = build_upload_button_multiple_files(
+            "documents", type=["pdf", "xlsx", "zip"], on_change=on_change_uploaded_files
+        )
 
-    col2.download_button(
-        label="Télécharger extraction",
-        data=data,
-        file_name=f"extraction{st.session_state.count_extraction-1}.xlsx",
-        disabled=not st.session_state.enable_download_extraction,
-        use_container_width=True,
-    )
+        # extraction
+        col1, col2 = frontend.helper.columns(2)
+
+        def extract():
+            assert config_file is not None
+            assert documents != []
+
+            # create folder of the extraction
+            dir_extraction = _build_extraction_folder_path()
+            os.makedirs(dir_extraction)
+
+            # create symbolic links
+            for doc in documents:
+                os.symlink(src=doc.path, dst=dir_extraction / doc.name)
+
+            # call the backend for extraction
+            infos_file_path = extract_infos_from_tree_and_config_file(
+                path_config_file=config_file.path, path_folder_sources=dir_extraction
+            )
+
+            # update global variables
+            st.session_state.infos_path_file = infos_file_path
+            st.session_state.enable_download_extraction = True
+            st.session_state.count_extraction += 1
+
+        # button extraction
+        col1.button(
+            label="Extraire",
+            on_click=extract,
+            disabled=not config_file or not documents,
+        )
+
+        # button download extraction
+        data = read_data_conditionned(
+            path=st.session_state.infos_path_file,
+            condition=st.session_state.enable_download_extraction,
+        )
+
+        col2.download_button(
+            label="Télécharger extraction",
+            data=data,
+            file_name=f"extraction{st.session_state.count_extraction-1}.xlsx",
+            disabled=not st.session_state.enable_download_extraction,
+            use_container_width=True,
+        )

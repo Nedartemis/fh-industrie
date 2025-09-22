@@ -3,20 +3,25 @@ import sys
 sys.path.append("./")
 sys.path.append("src/")
 
+from typing import List, Tuple
+
 import streamlit as st
+from streamlit.delta_generator import DeltaGenerator
 
 import file_helper
 from frontend import page_extraction, page_generation
+from frontend.page import Page
 from vars import PATH_TMP
 
 # pages
-PAGE1 = "Extraction"
-PAGE2 = "Génération"
+pages: List[Page] = [page_extraction.PageExtraction(), page_generation.PageGeneration()]
+
 
 # launch
 if "page" not in st.session_state:
     # Initialize selected page in session state
-    st.session_state.page = PAGE1
+    st.session_state.page = pages[0]
+    st.session_state.page.reset()
 
     # remove all
     file_helper.rmtree(
@@ -41,24 +46,22 @@ div.stButton > button {
 )
 cols = st.columns(2)
 
-pages_details = list(
-    zip(
-        cols,
-        [PAGE1, PAGE2],
-        [page_extraction.build_page, page_generation.build_page],
-    )
-)
+pages_details: List[Tuple[DeltaGenerator, Page]] = list(zip(cols, pages))
 
-# showcase the button of the active page
-for col, page, _ in pages_details:
+# build buttons to choose the page
+for col, page in pages_details:
     with col:
+        # showcase the button of the active page
         type = "primary" if st.session_state.page == page else "secondary"
-        if st.button(page, type=type):
+
+        # build button
+        pressed = st.button(page.get_name(), type=type)
+
+        # change button
+        if pressed and st.session_state.page != page:
+            page.reset()
             st.session_state.page = page
             st.rerun()
 
-# build pages
-for _, page, build_page in pages_details:
-    if st.session_state.page == page:
-        build_page()
-        break
+# build page
+st.session_state.page.build_page()
