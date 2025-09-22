@@ -4,6 +4,8 @@ from typing import Dict
 from docx import Document
 
 from backend.excel_manager import ExcelManager
+from backend.generation import BORDER_LEFT, BORDER_RIGHT, HARMONIZE_LABEL_INFO
+from backend.generation.replace_text import replace_text
 from backend.manage_config_file import read_config_file_files_infos_values
 from vars import DEFAULT_LOGGER, PATH_TMP, TYPE_LOGGER
 
@@ -20,6 +22,8 @@ def fill_template(
 
     # extract infos from filled file
     infos = read_config_file_files_infos_values(ExcelManager(infos_path_file))
+
+    # remove accents and other things
     log(f"Infos : {infos}")
 
     # error detection
@@ -67,12 +71,19 @@ def _fill_template_docx(
     template_path: Path, infos: Dict[str, str], path_output: Path
 ) -> None:
 
+    # open doc
     doc = Document(template_path)
+
+    # go through each paragraphs
     for para in doc.paragraphs:
-        for key, value in infos.items():
-            if key in para.text:
-                para.text = para.text.replace("{" + key + "}", value)
-                print(para.text)
+        # go through each infos
+        para.text = replace_text(
+            s=para.text,
+            pair_old_new=list(infos.items()),
+            border_left=BORDER_LEFT,
+            border_right=BORDER_RIGHT,
+            do_harmonization=HARMONIZE_LABEL_INFO,
+        )
 
     doc.save(path_output)
 
