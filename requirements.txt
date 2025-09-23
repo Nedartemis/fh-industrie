@@ -8,7 +8,7 @@ pillow
 poppler-utils
 pymupdf
 pytesseract
-python-doctr
+# python-doctr
 python-docx
 python-dotenv
 requests

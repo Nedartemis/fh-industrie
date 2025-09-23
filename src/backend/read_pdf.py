@@ -5,8 +5,9 @@ from typing import List, Optional
 
 import pymupdf
 import pytesseract
-from doctr.io import DocumentFile
-from doctr.models import ocr_predictor
+
+# from doctr.io import DocumentFile
+# from doctr.models import ocr_predictor
 from pdf2image import convert_from_path
 from PIL import Image
 from PIL.Image import Image
@@ -30,16 +31,16 @@ class PytesseractOCR(OCR):
         return pytesseract.image_to_string(image, lang=self._language)
 
 
-class DoctrOCR(OCR):
-    def __init__(self):
-        self._model = ocr_predictor(pretrained=True)
+# class DoctrOCR(OCR):
+# def __init__(self):
+#     self._model = ocr_predictor(pretrained=True)
 
-    def image_to_string(self, image: Image):
-        path_image = PATH_TMP / "image_to_ocr.png"
-        image.save(path_image)
-        doc = DocumentFile.from_images(path_image)
-        result = self._model(doc)
-        return result.render()
+# def image_to_string(self, image: Image):
+#     path_image = PATH_TMP / "image_to_ocr.png"
+#     image.save(path_image)
+#     doc = DocumentFile.from_images(path_image)
+#     result = self._model(doc)
+#     return result.render()
 
 
 # ------------------- Public Method -------------------
