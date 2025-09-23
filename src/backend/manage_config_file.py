@@ -5,17 +5,20 @@ from typing import Callable, Dict, List, Optional, Tuple
 from backend.excel_manager import ExcelManager
 from frontend.logger import LogLevel
 
-OFFSET_COLUMN_INFO_VALUE = 3
-TYPE_FILES_PATH = Dict[str, str]
-TYPE_FILES_INFOS = Dict[str, List[Tuple[str, str]]]
-
 
 @dataclass
 class InfoToExtractData:
+    instruction: str
     name: str
     desciption: str
     label_source: str
     value: str
+    long: bool
+
+
+OFFSET_COLUMN_INFO_VALUE = 3
+TYPE_FILES_PATH = Dict[str, str]
+TYPE_FILES_INFOS = Dict[str, List[InfoToExtractData]]
 
 
 # ------------------- Public Method -------------------
@@ -26,7 +29,6 @@ def read_config_file(
 ) -> Tuple[TYPE_FILES_PATH, TYPE_FILES_INFOS]:
 
     # open the excel
-    print(path_config_file)
     em = ExcelManager(path_config_file)
 
     # read the source page : read the label and the path of each file
@@ -82,13 +84,15 @@ def _manage_config_file_info_page(
     for current_row in range(1, len(ws.row_dimensions)):
         # retrieve metadata and data of the info
         info = InfoToExtractData(
+            instruction=em.get_text(ws, current_row, column - 1),
             name=em.get_text(ws, current_row, column),
             desciption=em.get_text(ws, current_row, column + 1),
             label_source=em.get_text(ws, current_row, column + 2),
             value=em.get_text(ws, current_row, column + OFFSET_COLUMN_INFO_VALUE),
+            long=em.get_text(ws, current_row, column - 1) == "X",
         )
 
-        if info.name is None:
+        if info.name is None or info.name == "None":
             continue
 
         # store infos
@@ -126,13 +130,14 @@ def _read_config_file_files_infos_per_label(em: ExcelManager) -> TYPE_FILES_INFO
     files_infos = {}
     for info in infos:
 
-        if info.value is not None and info.value != "None":
+        # if the value has not been yet filled
+        if not (info.value is None or info.value == "None"):
             continue
 
         if not info.label_source in files_infos:
             files_infos[info.label_source] = []
 
-        files_infos[info.label_source].append((info.name, info.desciption))
+        files_infos[info.label_source].append(info)
 
     return files_infos
 
@@ -167,14 +172,14 @@ def _error_detection_config_file_extraction(
 
     # check and filter files infos
     files_infos_filtered = {}
-    for name_source, e in files_infos.items():
+    for name_source, info in files_infos.items():
         if name_source not in files_path:
             print(
                 LogLevel.ERROR,
                 f"Le label '{name_source}' n'est pas une source présente dans la page des sources.",
             )
             continue
-        files_infos_filtered[name_source] = e
+        files_infos_filtered[name_source] = info
 
     return files_path_filtered, files_infos_filtered
 

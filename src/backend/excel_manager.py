@@ -28,7 +28,8 @@ class ExcelManager:
 
     @classmethod
     def get_text(cls, ws: Worksheet, row: int, col: int) -> str:
-        return cls.get_text_cell(ws.cell(row, col).value)
+        s = cls.get_text_cell(ws.cell(row, col).value).strip()
+        return None if not s or s == "None" else s
 
     @staticmethod
     def get_text_cell(cell_value) -> str:

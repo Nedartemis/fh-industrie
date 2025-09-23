@@ -1,12 +1,14 @@
 
 
 ipywidgets
+openpyxl
 pandas
 pdf2image
 pillow
 poppler-utils
 pymupdf
 pytesseract
+python-doctr
 python-docx
 python-dotenv
 requests
@@ -14,4 +16,3 @@ streamlit
 tqdm
 unidecode
 widgetsnbextension
-openpyxl

@@ -2,11 +2,15 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Dict, List
+from typing import Any, Dict, List
 
 from backend.claude_client import ClaudeClient
+from backend.manage_config_file import InfoToExtractData
 from backend.read_pdf import is_scanned, read_all_pdf
 from vars import DEFAULT_LOGGER, PATH_CACHE, PATH_ROOT, PATH_TEST, PATH_TMP, TYPE_LOGGER
+
+MAX_TOKENS = 10000
+TEMPERATURE = 1
 
 # ------------------- Public Method -------------------
 
@@ -14,7 +18,7 @@ from vars import DEFAULT_LOGGER, PATH_CACHE, PATH_ROOT, PATH_TEST, PATH_TMP, TYP
 def extract_info_from_pdf(
     claude_client: ClaudeClient,
     path_pdf: Path,
-    names_infos: List[str],
+    infos: List[InfoToExtractData],
     log: TYPE_LOGGER = DEFAULT_LOGGER,
 ) -> dict:
 
@@ -24,15 +28,18 @@ def extract_info_from_pdf(
     # extract info from the text
     new_infos = _extract_info_from_natural_language(
         claude_client=claude_client,
-        names_infos=names_infos,
+        infos=infos,
         text="\n\n".join(pages[:]),
         log=log,
     )
 
     # error detection
+    names_infos = [info.name for info in infos if not ":" in info.name]
 
     # -- found wrong ones
-    for name_info in new_infos:
+    for name_info in [
+        info_name for info_name, e in new_infos.items() if isinstance(e, str)
+    ]:
         if name_info not in names_infos:
             log(f"'{name_info}' a été extrait mais n'avait pas été demandé.")
 
@@ -57,12 +64,12 @@ def _get_pdf_pages(pdf_path: Path, log: TYPE_LOGGER):
         # read from cache
         with open(str(path_cache), mode="r") as f:
             pages = json.load(f)
-        log(f"'{pdf_path.name}' chargé depuis le cache.")
+        log(f"'{label}' chargé depuis le cache.")
     else:
         # read pdf
         pages = read_all_pdf(pdf_path)
         log(
-            f"'{pdf_path.name}' a été lu et est un pdf {'scanné' if is_scanned(pdf_path) else 'natif'}."
+            f"'{label}' a été lu et est un pdf {'scanné' if is_scanned(pdf_path) else 'natif'}."
         )
 
         # save into cache
@@ -73,18 +80,71 @@ def _get_pdf_pages(pdf_path: Path, log: TYPE_LOGGER):
 
 
 def _extract_info_from_natural_language(
-    claude_client: ClaudeClient, names_infos: List[str], text: str, log: TYPE_LOGGER
-) -> Dict[str, str]:
+    claude_client: ClaudeClient,
+    infos: List[InfoToExtractData],
+    text: str,
+    log: TYPE_LOGGER,
+) -> Dict[str, Any]:
 
     if not text:
         return {}
 
+    # little information
+
+    infos_short = [info for info in infos if not info.long]
+
+    # filter independants information
+    infos_short_independant = [info for info in infos if not ":" in info.name]
+
+    # filter list information
+    info_short_list: Dict[str, List[InfoToExtractData]] = {}
+    for info in infos_short:
+        if not ":" in info.name:
+            continue
+        parts = info.name.split(":")
+        assert len(parts) == 2
+        list_name, info_name = parts
+        if not list_name in info_short_list:
+            info_short_list[list_name] = []
+
+        new_info = InfoToExtractData(**info.__dict__)
+        new_info.name = info_name
+        info_short_list[list_name].append(new_info)
+
+    """{
+        "demendeurs" : [
+            {
+                "nom" : "string",
+                "avocat" : "string",
+                "avocat_lieu" : "string"
+            }, ...
+        ]
+    }"""
+
     # build prompt
+    def prompt_one_info(info: InfoToExtractData) -> str:
+        return f'"{info.name}": "string"' + (
+            f" # description : {info.desciption}" if info.desciption else ""
+        )
+
     format_infos = (
-        "```json\n{ \n"
-        + "\n\t".join([f'"{info_name}": "..."' for info_name in names_infos])
+        "```json\n{\n\t"
+        + ",\n\t".join(
+            [prompt_one_info(info) for info in infos_short_independant]
+            + [
+                f'"{list_name}" : [{s}, ...]'
+                for list_name, info_list in info_short_list.items()
+                if (
+                    s := "{"
+                    + ", ".join(prompt_one_info(info) for info in info_list)
+                    + "}"
+                )
+            ]
+        )
         + "\n}```"
     )
+    print(format_infos)
+
     prompt_system = f"""
         Extrait toutes les informations que tu trouves sous format json :
         {format_infos}
@@ -98,8 +158,8 @@ def _extract_info_from_natural_language(
     response = claude_client.create_message(
         system=prompt_system,
         messages=messages,
-        max_tokens=1000,
-        temperature=1,
+        max_tokens=MAX_TOKENS,
+        temperature=TEMPERATURE,
     )
 
     # extract the infos
@@ -116,6 +176,27 @@ def _extract_info_from_natural_language(
     extracted_json = {
         key: value for key, value in extracted_json.items() if value != "None"
     }
+
+    # long information
+    for info in infos:
+        if not info.long:
+            continue
+
+        description = f" et cette description : {info.desciption}"
+        prompt_system = (
+            f"Extraire le maximum d'information sans faire de résumé correspondant à ce nom '{info.name}'{description}."
+            + " Donne directement les informations extraites, sans amorce ni introduction."
+        )
+
+        response = claude_client.create_message(
+            system=prompt_system,
+            messages=[{"role": "user", "content": text}],
+            max_tokens=MAX_TOKENS,
+            temperature=TEMPERATURE,
+        )
+
+        extracted_json[info.name] = response["content"][0]["text"]
+        log(f"Long {info.name} : {extracted_json[info.name]}")
 
     return extracted_json
 
