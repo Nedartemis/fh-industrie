@@ -1,14 +1,15 @@
 
 
+# python-doctr
 ipywidgets
 openpyxl
 pandas
 pdf2image
 pillow
 poppler-utils
+poppler-utils
 pymupdf
 pytesseract
-# python-doctr
 python-docx
 python-dotenv
 requests
