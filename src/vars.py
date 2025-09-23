@@ -4,7 +4,10 @@ from typing import Callable
 import tmp as tmp_module
 
 # path
-PATH_TMP = Path(tmp_module.__file__).parent
+try:
+    PATH_TMP = Path(tmp_module.__file__).parent
+except:
+    PATH_TMP = "tmp/"
 
 PATH_ROOT = PATH_TMP.parent.resolve()
 
