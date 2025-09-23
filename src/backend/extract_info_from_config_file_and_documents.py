@@ -13,6 +13,7 @@ def extract_infos_from_tree_and_config_file(
     if not path_config_file.exists():
         raise RuntimeError(f"Configuration file '{path_config_file}' does not exist")
 
+    print("Path folder sources :", path_folder_sources)
     print("List dir")
     print(os.listdir(path_folder_sources))
 
