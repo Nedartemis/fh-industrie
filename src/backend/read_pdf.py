@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Optional
 
+import fitz  # PyMuPDF
 import pymupdf
 import pytesseract
 
@@ -10,7 +11,6 @@ import pytesseract
 # from doctr.models import ocr_predictor
 from pdf2image import convert_from_path
 from PIL import Image
-from PIL.Image import Image
 from tqdm import tqdm
 
 from vars import PATH_TMP
@@ -69,6 +69,20 @@ def _read_pdf_natiely(pdf_path: Path) -> List[str]:
     return pages
 
 
+def _pdf_to_images(pdf_path, output_folder):
+    pdf_document = fitz.open(pdf_path)
+
+    paths = []
+    for page_num in range(len(pdf_document)):
+        page = pdf_document[page_num]
+        pix = page.get_pixmap()
+        output_path = f"{output_folder}/page_{page_num + 1}.png"
+        pix.save(output_path)
+        print(f"Saved {output_path}")
+        paths.append(output_path)
+    return paths
+
+
 def _ocr_pdf(
     pdf_path: Path,
     pages: Optional[List[int]] = None,
@@ -91,25 +105,25 @@ def _ocr_pdf(
 
         # Convert PDF to images
         try:
-            images = convert_from_path(pdf_path, dpi=dpi)
-            print(f"PDF converted to {len(images)} images.")
+            images_path = _pdf_to_images(pdf_path, PATH_TMP)
+            print(f"PDF converted to {len(images_path)} images.")
         except Exception as e:
             print(f"Error converting PDF: {e}")
             return None
 
         if pages is None:
-            pages = list(range(1, len(images) + 1))
+            pages = list(range(1, len(images_path) + 1))
 
         # Process each page
         text_per_page = []
-        for i, image in tqdm(list(enumerate(images)), desc="OCR pages"):
+        for i, image_path in tqdm(list(enumerate(images_path)), desc="OCR pages"):
 
             page_number = i + 1
             if not page_number in pages:
                 continue
 
             # Perform OCR
-            text = ocr.image_to_string(image)
+            text = ocr.image_to_string(Image.open(image_path))
 
             # store result
             text_per_page.append(text)
