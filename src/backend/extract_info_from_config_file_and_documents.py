@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import Dict
 
@@ -11,6 +12,9 @@ def extract_infos_from_tree_and_config_file(
 ) -> Path:
     if not path_config_file.exists():
         raise RuntimeError(f"Configuration file '{path_config_file}' does not exist")
+
+    print("List dir")
+    print(os.listdir(path_folder_sources))
 
     print("Reading config file...")
 
