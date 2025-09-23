@@ -164,7 +164,7 @@ def _extract_info_from_natural_language(
 
     # extract the infos
     text_infos = response["content"][0]["text"]
-    # log(f"text_infos : {text_infos}")
+    log(f"text_infos : {text_infos}")
     res = re.search(pattern="```json(.*)```", string=text_infos, flags=re.DOTALL)
     extracted_str = res.group(1)
     log(f"extracted_str : {extracted_str}")

@@ -160,7 +160,7 @@ def _error_detection_config_file_extraction(
         elif not (path_folder_sources / path).exists():
             print(
                 LogLevel.ERROR,
-                f"Le fichier {path} n'existe pas dans l'arbre de fichier donné.",
+                f"Le fichier {path} n'existe pas dans l'arbre de fichier donné. ({path_folder_sources / path})",
             )
         elif not name_source in files_infos.keys():
             print(
