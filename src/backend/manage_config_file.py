@@ -157,7 +157,7 @@ def _error_detection_config_file_extraction(
                 LogLevel.ERROR,
                 f"L'extension '{p.suffix}' du fichier '{p.name}' n'est pas supporté en extraction d'information",
             )
-        elif not (path_folder_sources / path).exists():
+        elif not (path_folder_sources / path).resolve().exists():
             print(
                 LogLevel.ERROR,
                 f"Le fichier {path} n'existe pas dans l'arbre de fichier donné. ({path_folder_sources / path})",

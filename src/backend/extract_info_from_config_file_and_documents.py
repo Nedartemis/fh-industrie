@@ -38,7 +38,7 @@ def extract_infos_from_tree_and_config_file(
 
         new_infos_found = extract_info_from_pdf(
             ClaudeClient(),
-            path_folder_sources / files_path[source_name],
+            path_pdf=(path_folder_sources / files_path[source_name]).resolve(),
             infos=infos,
             log=print,
         )

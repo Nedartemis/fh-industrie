@@ -7,7 +7,7 @@ import tmp as tmp_module
 try:
     PATH_TMP = Path(tmp_module.__file__).parent
 except:
-    PATH_TMP = Path("tmp/")
+    PATH_TMP = Path("tmp/").resolve()
 
 PATH_ROOT = PATH_TMP.parent.resolve()
 
