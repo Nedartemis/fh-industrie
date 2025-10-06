@@ -77,7 +77,7 @@ def _fill_template_docx(
     # go through each paragraphs
     for para in doc.paragraphs:
         # go through each infos
-        para.text = replace_text(
+        para.text, _ = replace_text(
             s=para.text,
             pair_old_new=list(infos.items()),
             border_left=BORDER_LEFT,
@@ -91,11 +91,12 @@ def _fill_template_docx(
 # ------------------- Main Method -------------------
 
 if __name__ == "__main__":
-    from vars import PATH_TEMPLATE, PATH_TEST
+    from vars import PATH_TEST
 
     path_test = PATH_TEST / "test_generation"
     fill_template(
         infos_path_file=path_test / "config_file.xlsx",
-        template_path=path_test / "feuille_présence_modele.xlsx",
+        template_path=path_test
+        / "TJ NAP1 - Visio administrative & Convocation modele.docx",
         log=DEFAULT_LOGGER,
     )
