@@ -2,12 +2,12 @@ import json
 import os
 import re
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from backend.claude_client import ClaudeClient
-from backend.manage_config_file import InfoToExtractData
+from backend.manage_config_file import TYPE_INFOS_VALUE, InfoToExtractData
 from backend.read_pdf import is_scanned, read_all_pdf
-from vars import DEFAULT_LOGGER, PATH_CACHE, PATH_ROOT, PATH_TEST, PATH_TMP, TYPE_LOGGER
+from vars import DEFAULT_LOGGER, PATH_CACHE, PATH_ROOT, PATH_TEST, TYPE_LOGGER
 
 MAX_TOKENS = 10000
 TEMPERATURE = 1
@@ -20,7 +20,7 @@ def extract_info_from_pdf(
     path_pdf: Path,
     infos: List[InfoToExtractData],
     log: TYPE_LOGGER = DEFAULT_LOGGER,
-) -> dict:
+) -> TYPE_INFOS_VALUE:
 
     # get pages
     pages = _get_pdf_pages(path_pdf, log)
@@ -84,32 +84,33 @@ def _extract_info_from_natural_language(
     infos: List[InfoToExtractData],
     text: str,
     log: TYPE_LOGGER,
-) -> Dict[str, Any]:
+) -> TYPE_INFOS_VALUE:
 
     if not text:
         return {}
 
-    # little information
-
-    infos_short = [info for info in infos if not info.long]
-
-    # filter independants information
-    infos_short_independant = [info for info in infos if not ":" in info.name]
+    def is_info_list(name: str) -> bool:
+        return ":" in name
 
     # filter list information
-    info_short_list: Dict[str, List[InfoToExtractData]] = {}
-    for info in infos_short:
-        if not ":" in info.name:
+    info_list: Dict[str, List[InfoToExtractData]] = {}
+    for info in infos:
+        if not is_info_list(info.name):
             continue
+
         parts = info.name.split(":")
-        assert len(parts) == 2
+        assert len(parts) == 2, "Interlocked list not handled"
+
         list_name, info_name = parts
-        if not list_name in info_short_list:
-            info_short_list[list_name] = []
+        if not list_name in info_list:
+            info_list[list_name] = []
 
         new_info = InfoToExtractData(**info.__dict__)
         new_info.name = info_name
-        info_short_list[list_name].append(new_info)
+        info_list[list_name].append(new_info)
+
+    # list info are not long
+    assert all(not info.long for _, list in info_list.items() for info in list)
 
     """{
         "demendeurs" : [
@@ -127,13 +128,31 @@ def _extract_info_from_natural_language(
             f" # description : {info.desciption}" if info.desciption else ""
         )
 
+    """example
+    json
+    {
+        # independant info
+        lieu_expertise : "string" ,
+        # independant info with description
+        numero_rg : "string" # description : avec ce format...,
+        # list info
+        "demandeur" : [{"nom" : "string", "avocat" : "string"}, {"nom" : "string", "avocat" : "string"}, ...]
+    }
+    """
+
     format_infos = (
         "```json\n{\n\t"
         + ",\n\t".join(
-            [prompt_one_info(info) for info in infos_short_independant]
+            # short and independant info
+            [
+                prompt_one_info(info)
+                for info in infos
+                if not info.long and not is_info_list(info.name)
+            ]
+            # short and list info
             + [
                 f'"{list_name}" : [{s}, ...]'
-                for list_name, info_list in info_short_list.items()
+                for list_name, info_list in info_list.items()
                 if (
                     s := "{"
                     + ", ".join(prompt_one_info(info) for info in info_list)
@@ -170,12 +189,10 @@ def _extract_info_from_natural_language(
     log(f"extracted_str : {extracted_str}")
 
     # convert to json
-    extracted_json = json.loads(extracted_str)
+    extracted_json: TYPE_INFOS_VALUE = json.loads(extracted_str)
 
-    # filter those not found
-    extracted_json = {
-        key: value for key, value in extracted_json.items() if value != "None"
-    }
+    # filter the independant info that have not been found
+    extracted_json = {key: value for key, value in extracted_json.items()}
 
     # long information
     for info in infos:
@@ -184,8 +201,8 @@ def _extract_info_from_natural_language(
 
         description = f" et cette description : {info.desciption}"
         prompt_system = (
-            f"Extraire le maximum d'information sans faire de résumé correspondant à ce nom '{info.name}'{description}."
-            + " Donne directement les informations extraites, sans amorce ni introduction."
+            f"Extraire le maximum d'information sans faire de résumé correspondant à ce nom '{info.name}'{description}.\n"
+            + "Donne directement les informations extraites, sans amorce ni introduction."
         )
 
         response = claude_client.create_message(

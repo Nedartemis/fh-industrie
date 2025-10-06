@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple, Union
 
-from backend.excel_manager import ExcelManager
+from backend.excel_manager import ExcelManager, Worksheet
 from frontend.logger import LogLevel
 
 
@@ -16,6 +16,8 @@ class InfoToExtractData:
     long: bool
 
 
+TYPE_INFOS_VALUE = Dict[str, Union[str, List[dict]]]
+COLUMN_NAME_INFO = 2
 OFFSET_COLUMN_INFO_VALUE = 3
 TYPE_FILES_PATH = Dict[str, str]
 TYPE_FILES_INFOS = Dict[str, List[InfoToExtractData]]
@@ -47,7 +49,7 @@ def read_config_file(
 
 def read_config_file_files_infos_values(em: ExcelManager) -> Dict[str, str]:
 
-    infos_all_details = _manage_config_file_info_page(em)
+    infos_all_details = _read_config_file_info_page(em)
     return {
         info.name: info.value
         for info in infos_all_details
@@ -55,13 +57,21 @@ def read_config_file_files_infos_values(em: ExcelManager) -> Dict[str, str]:
     }
 
 
-def fill_config_file(path_config_file: Path, infos: dict, path_output: Path) -> None:
+def fill_config_file(
+    path_config_file: Path, infos: TYPE_INFOS_VALUE, path_output: Path
+) -> None:
 
     # open
     em = ExcelManager(path_config_file)
 
+    # get worksheet
+    ws = em.get_worksheet("Infos à extraire")
+
     # write
-    _manage_config_file_info_page(em, get_info_value_to_write=infos.get)
+    _write_independent_info(em, ws, infos)
+    _write_list_info(em, ws, infos)
+
+    # -- detect all the lists
 
     # save
     em.save(path_output)
@@ -71,39 +81,143 @@ def fill_config_file(path_config_file: Path, infos: dict, path_output: Path) -> 
 # ------------------- Private Method -------------------
 
 
-def _manage_config_file_info_page(
-    em: ExcelManager,
-    get_info_value_to_write: Callable[[str], Optional[str]] = lambda _: None,
-) -> List[InfoToExtractData]:
+def _write_independent_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
+    independant_infos = {
+        name: value for name, value in infos.items() if isinstance(value, str)
+    }
+
+    for current_row in range(1, len(ws.row_dimensions)):
+        # retrieve metadata and data of the info
+        info = _read_line(em, ws, current_row)
+
+        if info.name is None:
+            continue
+
+        # potential write value
+        info_to_write = independant_infos.get(info.name)
+        if info_to_write is not None:
+            ws.cell(
+                row=current_row,
+                column=COLUMN_NAME_INFO + OFFSET_COLUMN_INFO_VALUE,
+                value=info_to_write,
+            )
+
+
+def _write_list_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
+    def is_info_list(name: str) -> bool:
+        return name is not None and ":" in name
+
+    # get the (start row, end row, list of the sub information, ) of each list
+    lists: List[Tuple[str, int, int, List[InfoToExtractData]]] = []
+    current_row = 1
+    nb_rows = len(ws.row_dimensions)
+    while current_row < nb_rows:
+        info = _read_line(em, ws, current_row)
+
+        if not is_info_list(info.name):
+            current_row += 1
+            continue
+
+        list_name, _ = info.name.split(":")
+        if list_name in [name for name, _, _, _ in lists]:
+            raise RuntimeError(
+                f"List named '{list_name}' is at two different part of the config file."
+            )
+
+        start = current_row
+        sub_infos = []
+        while current_row < nb_rows:
+            info = _read_line(em, ws, current_row)
+            if not is_info_list(info.name):
+                break
+
+            list_name_current, info_name = info.name.split(":")
+            if list_name != list_name_current:
+                break
+
+            sub_info = InfoToExtractData(**info.__dict__)
+            sub_info.name = info_name
+            sub_infos.append(sub_info)
+            current_row += 1
+
+        end = current_row - 1
+
+        lists.append((list_name, start, end, sub_infos))
+
+    print("\n".join(f"{start} {end}" for _, start, end, _ in lists))
+
+    # filter if no informations has been found
+    lists = [e for e in lists if e[0] in infos.keys()]
+
+    print("inserted")
+    # insert rows
+    for idx in range(len(lists)):
+        (name_list, _, end, sub_infos) = lists[idx]
+        infos_extracted = infos.get(name_list)
+        assert infos_extracted is not None and isinstance(infos_extracted, list)
+
+        nb_to_add = len(sub_infos) * (len(infos_extracted) - 1)
+        ws.insert_rows(end + 1, amount=nb_to_add)
+
+        # update start and end
+        for idx in range(idx + 1, len(lists)):
+            name_list, start, end, sub_infos = lists[idx]
+            lists[idx] = (name_list, start + nb_to_add, end + nb_to_add, sub_infos)
+
+    print("\n".join(f"{start} {end}" for _, start, end, _ in lists))
+
+    # write on the rows
+    for name_list, start, _, sub_infos in lists:
+
+        for idx_ele_lst, info_extracted in enumerate(infos.get(name_list), start=0):
+
+            row_first = start + idx_ele_lst * len(sub_infos)
+            print("-", row_first)
+            ws.cell(row_first, COLUMN_NAME_INFO - 1, value=f"{name_list} {idx_ele_lst}")
+
+            for idx_info, sub_info in enumerate(sub_infos):
+
+                row = row_first + idx_info
+                print(row)
+                value = info_extracted[sub_info.name]
+                texts = [
+                    f"{name_list}:{sub_info.name}",
+                    sub_info.desciption,
+                    sub_info.label_source,
+                    value if value is not None and value != "None" else "",
+                ]
+                for col, text in enumerate(texts):
+                    ws.cell(row, COLUMN_NAME_INFO + col, value=text)
+
+
+def _read_config_file_info_page(em: ExcelManager) -> List[InfoToExtractData]:
 
     ws = em.get_worksheet("Infos à extraire")
 
     infos: List[InfoToExtractData] = []
 
-    column = 2
     for current_row in range(1, len(ws.row_dimensions)):
         # retrieve metadata and data of the info
-        info = InfoToExtractData(
-            instruction=em.get_text(ws, current_row, column - 1),
-            name=em.get_text(ws, current_row, column),
-            desciption=em.get_text(ws, current_row, column + 1),
-            label_source=em.get_text(ws, current_row, column + 2),
-            value=em.get_text(ws, current_row, column + OFFSET_COLUMN_INFO_VALUE),
-            long=em.get_text(ws, current_row, column - 1) == "X",
-        )
+        info = _read_line(em, ws, current_row)
 
-        if info.name is None or info.name == "None":
+        if info.name is None:
             continue
 
         # store infos
         infos.append(info)
 
-        # potential write value
-        info_to_write = get_info_value_to_write(info.name)
-        if info_to_write is not None:
-            ws.cell(current_row, column + OFFSET_COLUMN_INFO_VALUE, value=info_to_write)
-
     return infos
+
+
+def _read_line(em: ExcelManager, ws: Worksheet, row: int) -> InfoToExtractData:
+    return InfoToExtractData(
+        instruction=em.get_text(ws, row, COLUMN_NAME_INFO - 1),
+        name=em.get_text(ws, row, COLUMN_NAME_INFO),
+        desciption=em.get_text(ws, row, COLUMN_NAME_INFO + 1),
+        label_source=em.get_text(ws, row, COLUMN_NAME_INFO + 2),
+        value=em.get_text(ws, row, COLUMN_NAME_INFO + OFFSET_COLUMN_INFO_VALUE),
+        long=em.get_text(ws, row, COLUMN_NAME_INFO - 1) == "X",
+    )
 
 
 def _read_config_file_source_page(em: ExcelManager) -> TYPE_FILES_PATH:
@@ -125,7 +239,7 @@ def _read_config_file_source_page(em: ExcelManager) -> TYPE_FILES_PATH:
 
 def _read_config_file_files_infos_per_label(em: ExcelManager) -> TYPE_FILES_INFOS:
 
-    infos = _manage_config_file_info_page(em)
+    infos = _read_config_file_info_page(em)
 
     files_infos = {}
     for info in infos:
@@ -185,9 +299,57 @@ def _error_detection_config_file_extraction(
 
 
 if __name__ == "__main__":
-    from vars import PATH_CONFIG_FILE
+    from vars import PATH_CONFIG_FILE, PATH_TEST
 
-    files_path, files_infos = read_config_file(PATH_CONFIG_FILE)
+    path = PATH_TEST / "list"
+    if False:
+        files_path, files_infos = read_config_file(
+            path_config_file=path / "fichier_configuration.xlsx",
+            path_folder_sources=path,
+        )
 
-    print(f"files_path : {files_path}")
-    print(f"files_infos : {files_infos}")
+        print(f"files_path : {files_path}")
+        print(f"files_infos : {files_infos}")
+    else:
+        infos = {
+            "demandeur": [
+                {
+                    "nom": "M. Claude MASSERE",
+                    "avocat": "SCP MORIVAL AMISSE MABIRE",
+                    "avocat_lieu": "Barreau de DIEPPE",
+                },
+                {
+                    "nom": "Mme Françoise, Brigitte, Jeanne, Julia LAMAILLE épouse MASSERE",
+                    "avocat": "SCP MORIVAL AMISSE MABIRE",
+                    "avocat_lieu": "Barreau de DIEPPE",
+                },
+            ],
+            "defendeur": [
+                {
+                    "nom": "La S.A.R.L. BRUGOT XAVIER",
+                    "avocat": "SCP LENGLET, MALBESIN & Associés",
+                    "avocat_lieu": "Barreau de ROUEN",
+                },
+                {
+                    "nom": "La S.A. AXA France IARD",
+                    "avocat": "SCP LENGLET, MALBESIN & Associés",
+                    "avocat_lieu": "Barreau de ROUEN",
+                },
+                {
+                    "nom": "M. Olivier BOUDET",
+                    "avocat": "SELARL PATRICE LEMIEGRE PHILIPPE FOURDRIN SUNA GUNEY & Associés",
+                    "avocat_lieu": "Barreau de ROUEN",
+                },
+                {
+                    "nom": "La Société MUTUELLE DES ARCHITECTES FRANCAIS",
+                    "avocat": "None",
+                    "avocat_lieu": "None",
+                },
+            ],
+        }
+
+        fill_config_file(
+            path_config_file=path / "fichier_configuration.xlsx",
+            infos=infos,
+            path_output=path / "fichier_configuration_rempli.xlsx",
+        )

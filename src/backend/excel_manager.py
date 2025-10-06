@@ -1,5 +1,5 @@
 import itertools
-from typing import Tuple
+from typing import Optional, Tuple
 
 import openpyxl.cell.rich_text
 from openpyxl import load_workbook
@@ -27,7 +27,7 @@ class ExcelManager:
         return output, count + plus_count
 
     @classmethod
-    def get_text(cls, ws: Worksheet, row: int, col: int) -> str:
+    def get_text(cls, ws: Worksheet, row: int, col: int) -> Optional[str]:
         s = cls.get_text_cell(ws.cell(row, col).value).strip()
         return None if not s or s == "None" else s
 
