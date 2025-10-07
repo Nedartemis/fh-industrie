@@ -23,7 +23,6 @@ def fill_template(
     # extract infos from filled file
     infos = read_config_file_files_infos_values(ExcelManager(infos_path_file))
 
-    # remove accents and other things
     log(f"Infos : {infos}")
 
     # error detection
@@ -93,10 +92,18 @@ def _fill_template_docx(
 if __name__ == "__main__":
     from vars import PATH_TEST
 
-    path_test = PATH_TEST / "test_generation"
-    fill_template(
-        infos_path_file=path_test / "config_file.xlsx",
-        template_path=path_test
-        / "TJ NAP1 - Visio administrative & Convocation modele.docx",
-        log=DEFAULT_LOGGER,
-    )
+    if False:
+        path_test = PATH_TEST / "test_generation"
+        fill_template(
+            infos_path_file=path_test / "config_file.xlsx",
+            template_path=path_test
+            / "TJ NAP1 - Visio administrative & Convocation modele.docx",
+            log=DEFAULT_LOGGER,
+        )
+    else:
+        path = PATH_TEST / "feuille présence"
+        fill_template(
+            infos_path_file=path / "fichier_configuration_rempli.xlsx",
+            template_path=path / "feuille_présence_modele.xlsx",
+            log=DEFAULT_LOGGER,
+        )

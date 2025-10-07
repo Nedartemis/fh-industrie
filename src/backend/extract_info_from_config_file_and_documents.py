@@ -61,8 +61,8 @@ def extract_infos_from_tree_and_config_file(
 if __name__ == "__main__":
     from vars import PATH_TEST
 
-    path_test = PATH_TEST / "list"
+    path_test = PATH_TEST / "feuille présence"
     extract_infos_from_tree_and_config_file(
-        path_test / "fichier_configuration.xlsx",
+        path_test / "fichier_configuration_rempli.xlsx",
         path_folder_sources=path_test,
     )

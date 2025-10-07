@@ -32,7 +32,7 @@ def replace_text(
                 if tr(old) == tr(word):
 
                     # replace string
-                    s = s[: e.start(0)] + new + s[e.end(0) :]
+                    s = s[: e.start(0)] + (new if new else "") + s[e.end(0) :]
 
                     # recursive call because regex matches indexes might have change
                     return _replace_text_rec(

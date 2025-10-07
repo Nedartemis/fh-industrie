@@ -47,14 +47,66 @@ def read_config_file(
     return files_path, files_infos
 
 
-def read_config_file_files_infos_values(em: ExcelManager) -> Dict[str, str]:
+def read_config_file_files_infos_values(em: ExcelManager) -> TYPE_INFOS_VALUE:
 
     infos_all_details = _read_config_file_info_page(em)
-    return {
+
+    print([info.name for info in infos_all_details])
+
+    # independent info
+    independent_infos = {
         info.name: info.value
         for info in infos_all_details
-        if info.value and info.value != "None"
+        if info.value and not _is_info_list(info.name)
     }
+
+    # list info
+
+    list_infos: Dict[str, List[Dict[str, str]]] = {}
+
+    list_name = None
+    idx = None
+    for info in infos_all_details:
+        if not _is_info_list(info.name):
+            list_name = None
+            idx = None
+            continue
+
+        if _is_info_list(info.instruction):
+            e1, e2 = info.instruction.split(":")
+            list_name, idx = e1, int(e2) - 1
+
+            if idx == 0:  # first element
+                assert not list_name in list_infos.keys()
+                list_infos[list_name] = [{}]
+            else:
+                assert (
+                    list_name in list_infos.keys() and len(list_infos[list_name]) == idx
+                )
+                list_infos[list_name].append({})
+        elif list_name is None or idx is None:
+            raise RuntimeError("list_name and idx should not be None.")
+
+        list_name_current, info_name = info.name.split(":")
+        assert list_name_current == list_name
+
+        list_infos[list_name][idx][info_name] = info.value
+
+    print(
+        {
+            list_name: [
+                {sub_name: info_value for sub_name, info_value in e.items()}
+                for e in lst
+            ]
+            for list_name, lst in list_infos.items()
+        }
+    )
+
+    # merge
+    infos = dict(independent_infos)
+    infos.update(list_infos)
+
+    return infos
 
 
 def fill_config_file(
@@ -80,6 +132,15 @@ def fill_config_file(
 
 # ------------------- Private Method -------------------
 
+# > Helper
+
+
+def _is_info_list(name: str) -> bool:
+    return name is not None and ":" in name
+
+
+# > Write
+
 
 def _write_independent_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
     independant_infos = {
@@ -104,8 +165,6 @@ def _write_independent_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_V
 
 
 def _write_list_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
-    def is_info_list(name: str) -> bool:
-        return name is not None and ":" in name
 
     # get the (start row, end row, list of the sub information, ) of each list
     lists: List[Tuple[str, int, int, List[InfoToExtractData]]] = []
@@ -114,7 +173,7 @@ def _write_list_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
     while current_row < nb_rows:
         info = _read_line(em, ws, current_row)
 
-        if not is_info_list(info.name):
+        if not _is_info_list(info.name):
             current_row += 1
             continue
 
@@ -128,7 +187,7 @@ def _write_list_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
         sub_infos = []
         while current_row < nb_rows:
             info = _read_line(em, ws, current_row)
-            if not is_info_list(info.name):
+            if not _is_info_list(info.name):
                 break
 
             list_name_current, info_name = info.name.split(":")
@@ -172,14 +231,15 @@ def _write_list_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
         for idx_ele_lst, info_extracted in enumerate(infos.get(name_list), start=0):
 
             row_first = start + idx_ele_lst * len(sub_infos)
-            print("-", row_first)
-            ws.cell(row_first, COLUMN_NAME_INFO - 1, value=f"{name_list} {idx_ele_lst}")
+            ws.cell(
+                row_first, COLUMN_NAME_INFO - 1, value=f"{name_list}:{idx_ele_lst + 1}"
+            )
 
             for idx_info, sub_info in enumerate(sub_infos):
 
                 row = row_first + idx_info
-                print(row)
-                value = info_extracted[sub_info.name]
+                value = info_extracted.get(sub_info.name)
+
                 texts = [
                     f"{name_list}:{sub_info.name}",
                     sub_info.desciption,
@@ -188,6 +248,9 @@ def _write_list_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
                 ]
                 for col, text in enumerate(texts):
                     ws.cell(row, COLUMN_NAME_INFO + col, value=text)
+
+
+# > Read
 
 
 def _read_config_file_info_page(em: ExcelManager) -> List[InfoToExtractData]:
@@ -256,6 +319,9 @@ def _read_config_file_files_infos_per_label(em: ExcelManager) -> TYPE_FILES_INFO
     return files_infos
 
 
+# > Error detection
+
+
 def _error_detection_config_file_extraction(
     files_path: TYPE_FILES_PATH,
     files_infos: TYPE_FILES_INFOS,
@@ -297,6 +363,8 @@ def _error_detection_config_file_extraction(
 
     return files_path_filtered, files_infos_filtered
 
+
+# ------------------- Main -------------------
 
 if __name__ == "__main__":
     from vars import PATH_CONFIG_FILE, PATH_TEST
