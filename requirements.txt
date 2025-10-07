@@ -7,8 +7,8 @@ pandas
 pdf2image
 pillow
 poppler-utils
-poppler-utils
 pymupdf
+PyMuPDF
 pytesseract
 python-docx
 python-dotenv
