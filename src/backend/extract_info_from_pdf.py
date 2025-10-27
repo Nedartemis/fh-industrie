@@ -109,8 +109,8 @@ def _extract_info_from_natural_language(
         new_info.name = info_name
         info_list[list_name].append(new_info)
 
-    # list info are not long
-    assert all(not info.long for _, list in info_list.items() for info in list)
+    # list info are not exact
+    assert all(not info.exact for _, list in info_list.items() for info in list)
 
     """{
         "demendeurs" : [
@@ -140,70 +140,81 @@ def _extract_info_from_natural_language(
     }
     """
 
-    format_infos = (
-        "```json\n{\n\t"
-        + ",\n\t".join(
-            # short and independant info
-            [
-                prompt_one_info(info)
-                for info in infos
-                if not info.long and not is_info_list(info.name)
-            ]
-            # short and list info
-            + [
-                f'"{list_name}" : [{s}, ...]'
-                for list_name, info_list in info_list.items()
-                if (
-                    s := "{"
-                    + ", ".join(prompt_one_info(info) for info in info_list)
-                    + "}"
-                )
-            ]
+    list_short_info = (
+        # short and independant info
+        [
+            prompt_one_info(info)
+            for info in infos
+            if not info.exact and not is_info_list(info.name)
+        ]
+        # short and list info
+        + [
+            f'"{list_name}" : [{s}, ...]'
+            for list_name, info_list in info_list.items()
+            if (s := "{" + ", ".join(prompt_one_info(info) for info in info_list) + "}")
+        ]
+    )
+
+    def response_to_json(response: dict) -> TYPE_INFOS_VALUE:
+        # extract the infos
+        text_response = response["content"][0]["text"]
+        log(f"text_response : {text_response}")
+        res = re.search(pattern="```json(.*)```", string=text_response, flags=re.DOTALL)
+        if not res:
+            res = re.search(pattern="({.*})```", string=text_response, flags=re.DOTALL)
+
+        extracted_str = res.group(1)
+        log(f"extracted_str : {extracted_str}")
+
+        # convert to json
+        return json.loads(extracted_str)
+
+    if list_short_info:
+        format_infos = "```json\n{\n\t" + ",\n\t".join(list_short_info) + "\n}```"
+        print(format_infos)
+
+        prompt_system = f"""
+            Extrait toutes les informations que tu trouves sous format json :
+            {format_infos}
+
+            Si tu ne trouves pas l'info, remplie le champs par "None".
+        """
+
+        messages = [{"role": "user", "content": text}]
+
+        # call LLM
+        response = claude_client.create_message(
+            system=prompt_system,
+            messages=messages,
+            max_tokens=MAX_TOKENS,
+            temperature=TEMPERATURE,
         )
-        + "\n}```"
-    )
-    print(format_infos)
 
-    prompt_system = f"""
-        Extrait toutes les informations que tu trouves sous format json :
-        {format_infos}
+        extracted_json = response_to_json(response)
 
-        Si tu ne trouves pas l'info, remplie le champs par "None".
-    """
+        # filter the independant info that have not been found
+        extracted_json = {key: value for key, value in extracted_json.items()}
+    else:
+        extracted_json = {}
 
-    messages = [{"role": "user", "content": text}]
-
-    # call LLM
-    response = claude_client.create_message(
-        system=prompt_system,
-        messages=messages,
-        max_tokens=MAX_TOKENS,
-        temperature=TEMPERATURE,
-    )
-
-    # extract the infos
-    text_infos = response["content"][0]["text"]
-    log(f"text_infos : {text_infos}")
-    res = re.search(pattern="```json(.*)```", string=text_infos, flags=re.DOTALL)
-    extracted_str = res.group(1)
-    log(f"extracted_str : {extracted_str}")
-
-    # convert to json
-    extracted_json: TYPE_INFOS_VALUE = json.loads(extracted_str)
-
-    # filter the independant info that have not been found
-    extracted_json = {key: value for key, value in extracted_json.items()}
-
-    # long information
+    # exact information
     for info in infos:
-        if not info.long:
+        if not info.exact:
             continue
 
-        description = f" et cette description : {info.desciption}"
-        prompt_system = (
-            f"Extraire le maximum d'information sans faire de résumé correspondant à ce nom '{info.name}'{description}.\n"
-            + "Donne directement les informations extraites, sans amorce ni introduction."
+        description = (
+            f" ayant cette description : {info.desciption}" if info.desciption else ""
         )
+        prompt_system = (
+            f"Extraire le début et la fin de cette information '{info.name}'{description}.\n"
+            + "Le format doit être le suivant :"
+            + "```json\n"
+            + "{\n"
+            + '\t"debut" : "string"\n'
+            + '\t"fin" : "string"\n'
+            + "}```"
+        )
+        log(f"prompt system exact : {prompt_system}")
 
         response = claude_client.create_message(
             system=prompt_system,
@@ -212,8 +223,24 @@ def _extract_info_from_natural_language(
             temperature=TEMPERATURE,
         )
 
-        extracted_json[info.name] = response["content"][0]["text"]
-        log(f"Long {info.name} : {extracted_json[info.name]}")
+        begin_end = response_to_json(response)
+        begin = begin_end["debut"]
+        end = begin_end["fin"]
+
+        # get the indices of the begin and end
+        def get_index(text_to_search: str, label: str) -> int:
+            try:
+                return text.index(text_to_search)
+            except ValueError:
+                log(f"{label} not in the text")
+
+        idx_begin = get_index(text_to_search=begin, label="Begin")
+        idx_end = get_index(text_to_search=end, label="End") + len(end)
+
+        exact_info_text = text[idx_begin:idx_end]
+
+        extracted_json[info.name] = exact_info_text
+        log(f"exact {info.name} : {exact_info_text}")
 
     return extracted_json
 
