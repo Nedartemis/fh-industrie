@@ -13,7 +13,7 @@ class InfoToExtractData:
     desciption: str
     label_source: str
     value: str
-    long: bool
+    exact: bool
 
 
 TYPE_INFOS_VALUE = Dict[str, Union[str, List[dict]]]
@@ -37,7 +37,7 @@ def read_config_file(
     files_path_all = _read_config_file_source_page(em)
 
     # read the info page
-    files_infos_all = _read_config_file_files_infos_per_label(em)
+    files_infos_all = _read_config_file_info_page_and_preprocess(em)
 
     # -- error detection (files not supported, ...)
     files_path, files_infos = _error_detection_config_file_extraction(
@@ -203,8 +203,6 @@ def _write_list_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
 
         lists.append((list_name, start, end, sub_infos))
 
-    print("\n".join(f"{start} {end}" for _, start, end, _ in lists))
-
     # filter if no informations has been found
     lists = [e for e in lists if e[0] in infos.keys()]
 
@@ -222,8 +220,6 @@ def _write_list_info(em: ExcelManager, ws: Worksheet, infos: TYPE_INFOS_VALUE):
         for idx in range(idx + 1, len(lists)):
             name_list, start, end, sub_infos = lists[idx]
             lists[idx] = (name_list, start + nb_to_add, end + nb_to_add, sub_infos)
-
-    print("\n".join(f"{start} {end}" for _, start, end, _ in lists))
 
     # write on the rows
     for name_list, start, _, sub_infos in lists:
@@ -259,7 +255,7 @@ def _read_config_file_info_page(em: ExcelManager) -> List[InfoToExtractData]:
 
     infos: List[InfoToExtractData] = []
 
-    for current_row in range(1, len(ws.row_dimensions)):
+    for current_row in range(3, ws.max_row + 1):
         # retrieve metadata and data of the info
         info = _read_line(em, ws, current_row)
 
@@ -279,7 +275,7 @@ def _read_line(em: ExcelManager, ws: Worksheet, row: int) -> InfoToExtractData:
         desciption=em.get_text(ws, row, COLUMN_NAME_INFO + 1),
         label_source=em.get_text(ws, row, COLUMN_NAME_INFO + 2),
         value=em.get_text(ws, row, COLUMN_NAME_INFO + OFFSET_COLUMN_INFO_VALUE),
-        long=em.get_text(ws, row, COLUMN_NAME_INFO - 1) == "X",
+        exact=em.get_text(ws, row, COLUMN_NAME_INFO + 4) == "X",
     )
 
 
@@ -300,16 +296,24 @@ def _read_config_file_source_page(em: ExcelManager) -> TYPE_FILES_PATH:
     return files_path
 
 
-def _read_config_file_files_infos_per_label(em: ExcelManager) -> TYPE_FILES_INFOS:
+def _read_config_file_info_page_and_preprocess(em: ExcelManager) -> TYPE_FILES_INFOS:
 
     infos = _read_config_file_info_page(em)
 
+    # get the list who has already been extracted (fully or partially)
+    list_name_done = list(
+        set([info.instruction.split(":")[0] for info in infos if info.instruction])
+    )
+
+    # filter those list
+    infos = [info for info in infos if info.name.split(":")[0] not in list_name_done]
+
+    # filter those who has already a value
+    infos = [info for info in infos if info.value is None]
+
+    # group by label source
     files_infos = {}
     for info in infos:
-
-        # if the value has not been yet filled
-        if not (info.value is None or info.value == "None"):
-            continue
 
         if not info.label_source in files_infos:
             files_infos[info.label_source] = []
