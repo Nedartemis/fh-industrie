@@ -6,6 +6,7 @@ notebooks/test.ipynb
 tmp/
 cache/
 test/
+.vscode
 
 
 # Byte-compiled / optimized / DLL files
