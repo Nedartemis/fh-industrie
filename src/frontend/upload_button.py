@@ -75,7 +75,7 @@ def _build_upload_button(
 
     saved_files: List[SavedFile] = []
 
-    # save the uploaded files
+    # save the uploaded files in tmp/
     for file in uploaded_file:
 
         # build the path to save
@@ -92,7 +92,7 @@ def _build_upload_button(
             print(f"Saving uploaded file : {filename_dst}")
 
             # save it according to its extension
-            if ext in ["xlsx", "pdf"]:
+            if ext in ["xlsx", "docx", "pdf"]:
                 io_helper.write(file.getvalue(), path_dst=path_dst)
             elif ext == "zip":
                 _extract_zip_file(file, path_dst=path_dst)

@@ -7,7 +7,7 @@ from typing import List
 def rmtree(
     root: Path,
     rm_root: bool = True,
-    file_to_avoid_removing_at_the_root: List[str] = list(),
+    ext_file_to_avoid_removing_at_the_root: List[str] = list(),
 ) -> None:
     if rm_root:
         shutil.rmtree(root)
@@ -18,7 +18,7 @@ def rmtree(
         if path.is_dir():
             shutil.rmtree(path)
         elif path.is_file():
-            if path.suffix.lower()[1:] in file_to_avoid_removing_at_the_root:
+            if path.suffix.lower()[1:] in ext_file_to_avoid_removing_at_the_root:
                 continue
             os.remove(path)
         else:

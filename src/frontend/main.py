@@ -25,7 +25,9 @@ if "page" not in st.session_state:
 
     # remove all
     file_helper.rmtree(
-        PATH_TMP, rm_root=False, file_to_avoid_removing_at_the_root=["py", "gitkeep"]
+        PATH_TMP,
+        rm_root=False,
+        ext_file_to_avoid_removing_at_the_root=["py", "gitkeep"],
     )
 
 

@@ -15,7 +15,7 @@ from frontend.upload_button import (
     build_upload_button_multiple_files,
     build_upload_button_one_file,
 )
-from vars import PATH_TMP
+from vars import PATH_TMP, SUPPORTED_FILES_EXT_EXTRACTION
 
 
 def _build_extraction_folder_path() -> Path:
@@ -59,7 +59,9 @@ class PageExtraction(Page):
         )
 
         documents = build_upload_button_multiple_files(
-            "documents", type=["pdf", "xlsx", "zip"], on_change=on_change_uploaded_files
+            "documents",
+            type=SUPPORTED_FILES_EXT_EXTRACTION + ["zip"],
+            on_change=on_change_uploaded_files,
         )
 
         # extraction

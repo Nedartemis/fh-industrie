@@ -1,47 +1,13 @@
 import tempfile
-from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Optional
 
 # import fitz  # PyMuPDF
 import pymupdf
-import pytesseract
-
-# from doctr.io import DocumentFile
-# from doctr.models import ocr_predictor
 from pdf2image import convert_from_path
-from PIL import Image
 from tqdm import tqdm
 
-from vars import PATH_TMP
-
-
-class OCR(ABC):
-    @abstractmethod
-    def image_to_string(self, image) -> str:
-        pass
-
-
-class PytesseractOCR(OCR):
-
-    def __init__(self, language: str):
-        self._language = language
-
-    def image_to_string(self, image: Image) -> str:
-        return pytesseract.image_to_string(image, lang=self._language)
-
-
-# class DoctrOCR(OCR):
-# def __init__(self):
-#     self._model = ocr_predictor(pretrained=True)
-
-# def image_to_string(self, image: Image):
-#     path_image = PATH_TMP / "image_to_ocr.png"
-#     image.save(path_image)
-#     doc = DocumentFile.from_images(path_image)
-#     result = self._model(doc)
-#     return result.render()
-
+from backend.read_pdf.ocr import PytesseractOCR
 
 # ------------------- Public Method -------------------
 
@@ -134,9 +100,13 @@ def _ocr_pdf(
 # ------------------- Main -------------------
 
 if __name__ == "__main__":
-    from vars import PATH_TEST
+    from vars import PATH_TEST_DOCS
 
-    path = PATH_TEST / "test_description" / "TJ ROUEN_24800954_LEBRETON_Ordonnance.pdf"
+    path = (
+        PATH_TEST_DOCS
+        / "test_description"
+        / "TJ ROUEN_24800954_LEBRETON_Ordonnance.pdf"
+    )
     print(is_scanned(path))
     res = read_all_pdf(path)
     print(res[0])

@@ -3,10 +3,10 @@ from typing import Dict
 
 from docx import Document
 
-from backend.excel_manager import ExcelManager
+from backend.config_file.config_file import read_config_file_files_infos_values
+from backend.excel.excel_book import ExcelBook
 from backend.generation import BORDER_LEFT, BORDER_RIGHT, HARMONIZE_LABEL_INFO
 from backend.generation.replace_text import replace_text
-from backend.manage_config_file import read_config_file_files_infos_values
 from vars import DEFAULT_LOGGER, PATH_TMP, TYPE_LOGGER
 
 # ------------------- Public Method -------------------
@@ -21,7 +21,7 @@ def fill_template(
         raise RuntimeError("Info file does not exist")
 
     # extract infos from filled file
-    infos = read_config_file_files_infos_values(ExcelManager(infos_path_file))
+    infos = read_config_file_files_infos_values(ExcelBook(infos_path_file))
 
     log(f"Infos : {infos}")
 
@@ -61,7 +61,7 @@ def _fill_template_excel(
     template_path: Path, infos: Dict[str, str], path_output: Path
 ) -> None:
 
-    em = ExcelManager(template_path)
+    em = ExcelBook(template_path)
     em.replace_content(infos)
     em.save(path_output)
 
@@ -90,10 +90,10 @@ def _fill_template_docx(
 # ------------------- Main Method -------------------
 
 if __name__ == "__main__":
-    from vars import PATH_TEST
+    from vars import PATH_TEST_DOCS
 
     if False:
-        path_test = PATH_TEST / "test_generation"
+        path_test = PATH_TEST_DOCS / "test_generation"
         fill_template(
             infos_path_file=path_test / "config_file.xlsx",
             template_path=path_test
@@ -101,7 +101,7 @@ if __name__ == "__main__":
             log=DEFAULT_LOGGER,
         )
     else:
-        path = PATH_TEST / "feuille présence"
+        path = PATH_TEST_DOCS / "feuille présence"
         fill_template(
             infos_path_file=path / "fichier_configuration_rempli.xlsx",
             template_path=path / "feuille_présence_modele.xlsx",

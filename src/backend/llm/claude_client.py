@@ -1,14 +1,17 @@
 import os
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 import requests
 
+from backend.llm.llm_base import TYPE_MESSAGES, LlmBase
 
-class ClaudeClient:
+
+class ClaudeClient(LlmBase):
     """A simple client for the Anthropic Claude API."""
 
     def __init__(self, api_key: Optional[str] = None):
         """Initialize the Claude client with your API key."""
+        super().__init__()
         if api_key is None:
             api_key = os.environ["CLAUDE_KEY"]
 
@@ -21,10 +24,13 @@ class ClaudeClient:
             "content-type": "application/json",
         }
 
+    def build_messages(msg: str) -> TYPE_MESSAGES:
+        return [{"role": "user", "content": msg}]
+
     def create_message(
         self,
         model: str = "claude-3-7-sonnet-20250219",
-        messages: List[Dict[str, str]] = None,
+        messages: TYPE_MESSAGES = None,
         system: Optional[str] = None,
         max_tokens: int = 1024,
         temperature: float = 0.7,
@@ -67,4 +73,4 @@ class ClaudeClient:
                 f"API request failed with status {response.status_code}: {response.text}"
             )
 
-        return response.json()
+        return response.json()["content"][0]["text"]
