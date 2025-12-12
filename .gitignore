@@ -5,9 +5,10 @@ outputs/
 notebooks/test.ipynb
 tmp/
 cache/
-test/
+test_docs/
 .vscode
-
+*_generated.xlsx
+.pytest_cache/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
