@@ -18,7 +18,7 @@ PATH_DOCS = PATH_ROOT / "docs"
 PATH_TEMPLATE = PATH_ROOT / "templates"
 PATH_CACHE = PATH_ROOT / "cache"
 PATH_TEST_DOCS = PATH_ROOT / "test_docs"
-PATH_TEST_DOCS_TESTSUITE = PATH_ROOT / "test_docs" / "testsuite"
+PATH_TEST_DOCS_TESTSUITE = PATH_ROOT / "tests" / "testsuite_docs"
 
 # logger
 TYPE_LOGGER = Callable[[str], None]
