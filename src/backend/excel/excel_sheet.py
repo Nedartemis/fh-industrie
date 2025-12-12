@@ -1,3 +1,4 @@
+from itertools import product
 from typing import Callable, List, Optional, Tuple
 
 import openpyxl.cell.rich_text
@@ -10,8 +11,11 @@ from logs_label import EmptynessExcelCell, ExactnessExcelCell, FullnessExcelCell
 class ExcelSheet:
     """Wrapper around openpyxl Worksheet"""
 
-    def __init__(self, ws: Worksheet):
+    def __init__(self, ws: Worksheet, name: str):
         self.ws = ws
+        self.name = name
+
+    # ------------------- Getter -------------------
 
     def get_text_cell(self, row: int, col: int) -> Optional[str]:
         s = str(self.ws.cell(row, col).value).strip()
@@ -25,6 +29,8 @@ class ExcelSheet:
 
     def get_col_dimension(self) -> int:
         return self.ws.max_column
+
+    # ------------------- Modifiers -------------------
 
     def replace_text_in_cell(
         self,
@@ -64,6 +70,8 @@ class ExcelSheet:
             raise ValueError(f"Excel cell type not implemmented : {type(cell_value)}")
 
         return nb_changes
+
+    # ------------------- Checkers -------------------
 
     def check_content_cell(
         self,
@@ -151,13 +159,76 @@ class ExcelSheet:
         if empty_cols:
             logger.log(
                 level=log_level,
-                msg=f"{page_name} : Column(s) {', '.join(empty_cols)} is/are empty on the row {row}.\n"
+                msg=f"{page_name} : Column(s) [{', '.join(empty_cols)}] is/are empty on the row {row}.\n"
                 + f"The excel may have a mistake.",
                 extra=EmptynessExcelCell(
                     page_name=page_name, header_names=empty_cols, row=row
                 ),
             )
         return empty_cols
+
+    # ------------------- Predicate -------------------
+
+    def equals_cell_text(self, other: "ExcelSheet", row: int, col: int) -> bool:
+        t1 = self.get_text_cell(row=row, col=col)
+        t2 = other.get_text_cell(row=row, col=col)
+        if t1 != t2:
+            logger.info(
+                f"Excel equality : Sheet '{self.name}' : {f(row=row, col=col)}, '{t1}' != '{t2}'"
+            )
+            return False
+
+        return True
+
+    def is_empty(self, row_min: int, row_max: int, col_min: int, col_max: int) -> bool:
+        for row, col in product(
+            range(row_min, row_max + 1),
+            range(col_min, col_max + 1),
+        ):
+            if not self.get_text_cell(row=row, col=col) is None:
+                logger.info(
+                    f"Excel equality : Sheet '{self.name}' : cell {f(row=row, col=col)} should be empty."
+                )
+                return False
+        return True
+
+    def equals(self, other: "ExcelSheet") -> bool:
+
+        min_dim_row = min(self.get_row_dimension(), other.get_row_dimension())
+        min_dim_col = min(self.get_col_dimension(), other.get_col_dimension())
+
+        # # check equality
+        for row, col in product(range(1, min_dim_row + 1), range(1, min_dim_col + 1)):
+            if not self.equals_cell_text(other, row=row, col=col):
+                return False
+
+        # check emptyness
+        return (
+            self.is_empty(
+                row_min=min_dim_row + 1,
+                row_max=self.get_row_dimension(),
+                col_min=1,
+                col_max=self.get_col_dimension(),
+            )
+            and self.is_empty(
+                row_min=1,
+                row_max=self.get_row_dimension(),
+                col_min=min_dim_col + 1,
+                col_max=self.get_col_dimension(),
+            )
+            and other.is_empty(
+                row_min=min_dim_row + 1,
+                row_max=other.get_row_dimension(),
+                col_min=1,
+                col_max=other.get_col_dimension(),
+            )
+            and other.is_empty(
+                row_min=1,
+                row_max=other.get_row_dimension(),
+                col_min=min_dim_col + 1,
+                col_max=other.get_col_dimension(),
+            )
+        )
 
 
 if __name__ == "__main__":

@@ -5,8 +5,8 @@ from typing import Optional
 @dataclass
 class ExtractionData:
     name: str
-    label_source_name: str
     row: int
+    label_source_name: Optional[str] = None
     instruction: Optional[str] = None
     description: Optional[str] = None
     value: Optional[str] = None

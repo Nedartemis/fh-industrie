@@ -2,13 +2,22 @@ from pathlib import Path
 from typing import Dict, Tuple
 
 import backend.config_file.info_page.read as info_page
+from backend.config_file.info_page import NAME_WORKSHEET as NAME_WORKSHEET_INFO
 from backend.config_file.info_page.read import read_info_page_and_preprocess
 from backend.config_file.info_page.write import write_values
+from backend.config_file.source_page import NAME_WORKSHEET as NAME_WORKSHEET_SOURCE
 from backend.config_file.source_page import TYPE_SOURCES, read_source_page
 from backend.excel.excel_book import ExcelBook
 from backend.info_struct.info_extraction_datas import InfoExtractionDatas
 from backend.info_struct.info_values import InfoValues
 from logger import f, logger
+from logs_label import (
+    EmptyInfoExcel,
+    ExtensionFileNotSupported,
+    PathNotExisting,
+    SourceNotGiven,
+    SourceNotUseful,
+)
 from vars import SUPPORTED_FILES_EXT_EXTRACTION
 
 # ------------------- Public Method -------------------
@@ -28,17 +37,17 @@ def read_config_file(
     sources = read_source_page(em)
 
     # read the info page
-    extraction_datas = read_info_page_and_preprocess(em)
+    eds = read_info_page_and_preprocess(em)
 
     # error detection and filter
-    files_path, files_infos = _error_detection_config_file_extraction_and_filter(
-        sources, extraction_datas, path_folder_sources
+    sources, eds = _error_detection_config_file_extraction_and_filter(
+        em.get_excel_name(), sources, eds, path_folder_sources
     )
 
     log_sources(sources)
-    log_infos(infos=extraction_datas)
+    log_infos(infos=eds)
 
-    return files_path, files_infos
+    return sources, eds
 
 
 def read_info_values(path_config_file: Path) -> InfoValues:
@@ -91,6 +100,7 @@ def log_infos(infos: Dict[str, InfoExtractionDatas]):
 
 
 def _error_detection_config_file_extraction_and_filter(
+    excel_name: str,
     sources: TYPE_SOURCES,
     extraction_datas: Dict[str, InfoExtractionDatas],
     path_folder_sources: Path,
@@ -98,33 +108,55 @@ def _error_detection_config_file_extraction_and_filter(
 
     # check and filter sources
     sources_filtered = {}
-    for name_source, path in sources.items():
+    for name_source, path_str in sources.items():
+        path = Path(path_str)
         if path.suffix[1:] not in SUPPORTED_FILES_EXT_EXTRACTION:
+            # extensions
             logger.error(
                 f"The extraction does not support files of extension '{path.suffix[1:]}' '{f(filename=path.name)}'.\n"
                 + f"Supported extensions are {', '.join(SUPPORTED_FILES_EXT_EXTRACTION)}",
+                extra=ExtensionFileNotSupported(path=path),
             )
         elif not (path_folder_sources / path).resolve().exists():
+            # file not exising
             logger.error(
-                f"The file '{path}' does not exist. {f(fullpath=path_folder_sources / path)}",
+                f"The file '{path_str}' does not exist. {f(fullpath=path_folder_sources / path)}",
+                extra=PathNotExisting(path=path_str),
             )
         elif not name_source in extraction_datas.keys():
+            # source not used
             logger.warning(
                 f"There is no information to extract from '{name_source}'.",
+                extra=SourceNotUseful(source=name_source),
             )
         else:
-            sources_filtered[name_source] = path
+            sources_filtered[name_source] = path_str
 
     # check and filter extraction datas
-
     extraction_datas_filtered = {}
     for name_source, infos in extraction_datas.items():
         if name_source not in sources:
             logger.error(
                 f"The label '{name_source}' is not present in the sources worksheet of the config file.",
+                extra=SourceNotGiven(name_source=name_source),
             )
             continue
         extraction_datas_filtered[name_source] = infos
+
+    # emptiness
+    if not sources_filtered:
+        logger.error(
+            "Information from sources are empty after all the other checks.",
+            extra=EmptyInfoExcel(
+                excel_name=excel_name, page_name=NAME_WORKSHEET_SOURCE
+            ),
+        )
+
+    if not extraction_datas_filtered:
+        logger.error(
+            "Information from information page are empty after all the other checks.",
+            extra=EmptyInfoExcel(excel_name=excel_name, page_name=NAME_WORKSHEET_INFO),
+        )
 
     return sources_filtered, extraction_datas_filtered
 

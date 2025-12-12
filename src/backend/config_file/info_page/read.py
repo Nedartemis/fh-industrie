@@ -59,10 +59,8 @@ def read_info_page(eb: ExcelBook) -> List[ExtractionData]:
 
     # rest cols
     cols_except_name = [(d.header_name, d.col) for d in Datas if d != Datas.NAME]
-    mandatory_cols = [
-        (d.header_name, d.col)
-        for d in Datas
-        if d in [Datas.NAME, Datas.LABEL_SOURCE_NAME]
+    mandatory_cols_execpt_name = [
+        (d.header_name, d.col) for d in Datas if d in [Datas.LABEL_SOURCE_NAME]
     ]
 
     # read data
@@ -81,10 +79,11 @@ def read_info_page(eb: ExcelBook) -> List[ExtractionData]:
             )
             continue
 
-        if es.check_fullness_row(
-            page_name=NAME_WORKSHEET, row=current_row, header_name_cols=mandatory_cols
-        ):
-            continue
+        es.check_fullness_row(
+            page_name=NAME_WORKSHEET,
+            row=current_row,
+            header_name_cols=mandatory_cols_execpt_name,
+        )
 
         # store infos
         infos.append(info)
@@ -157,7 +156,6 @@ def read_info_page_and_preprocess(em: ExcelBook) -> Dict[str, InfoExtractionData
 
     # 3.
     list_name_dones = get_first_names_of_info_list_extracted(eds_lst)
-    logger.info(list_name_dones)
 
     # - filter those list
     eds_lst = [
@@ -191,21 +189,18 @@ def read_info_page_and_preprocess(em: ExcelBook) -> Dict[str, InfoExtractionData
 
 def read_info_values(em: ExcelBook) -> InfoValues:
 
-    extraction_datas = read_info_page(em)
-
-    logger.info([info.name for info in extraction_datas])
+    eds = read_info_page(em)
 
     # ind : filter those without values
     ind_infos = {
-        info.name: info.value
-        for info in extraction_datas
-        if is_info_ind(info.name) and info.value
+        info.name: info.value for info in eds if is_info_ind(info.name) and info.value
     }
 
     # list info
-    list_infos = info_list_helper.get_info_list_values(extraction_datas)
+    eds_lst = [ed for ed in eds if is_info_list(ed.name)]
+    list_infos = info_list_helper.get_info_list_values(eds_lst)
 
-    return InfoValues(indepedant_infos=ind_infos, list_infos=list_infos)
+    return InfoValues(independant_infos=ind_infos, list_infos=list_infos)
 
 
 # ------------------------- Test -------------------------

@@ -40,5 +40,6 @@ def checks_and_filter_info_ind(eds_ind: List[ExtractionData]):
             + f"Here is the row and information name where it is not respected : {names_and_rows}",
             extra=InstructionIndMustBeEmpty(names_and_rows=names_and_rows),
         )
+    eds_ind = [ed for ed in eds_ind if ed.instruction is None]
 
     return eds_ind

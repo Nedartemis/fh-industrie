@@ -13,7 +13,7 @@ from logs_label import (
 # {
 #   "source_name" : "source_path"
 # }
-TYPE_SOURCES = Dict[str, Path]
+TYPE_SOURCES = Dict[str, str]
 
 # str
 NAME_WORKSHEET = "Sources"

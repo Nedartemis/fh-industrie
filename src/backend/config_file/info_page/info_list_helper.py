@@ -72,53 +72,57 @@ def is_info_ind(name: Optional[str]) -> bool:
 # ------------------------- Conversion -------------------------
 
 
-def get_info_list_values(
-    extraction_datas: List[ExtractionData],
-) -> Dict[str, List[dict]]:
+def get_info_list_values(eds: List[ExtractionData]) -> Dict[str, List[dict]]:
 
-    list_infos: Dict[List[dict]]
+    assert all(is_info_list(ed.name) for ed in eds)
 
-    # search for all the first names
-    list_infos = {
-        first_name: {}
-        for first_name in get_first_names_of_info_list_extracted(extraction_datas)
+    # we suppose the list completly valid because checks have been made earlier
+
+    grouped_by_first_name: Dict[str, List[ExtractionData]] = {
+        get_first_name(ed.name): [] for ed in eds
     }
 
-    # get the sub names and values
-    first_name = None
-    idx = None
-    for info in extraction_datas:
-        if not is_info_list(info.name):
-            # list info should stick together, here there is a blanck of list -> reset
-            first_name = None
-            idx = None
-            continue
+    for ed in eds:
+        grouped_by_first_name[get_first_name(ed.name)].append(ed)
 
-        if is_info_list(info.instruction):
-            # new element of the list
-            first_name, idx = split_instruction(info.instruction)
+    # filter those not eclated
+    grouped_by_first_name = {
+        first_name: eds
+        for first_name, eds in grouped_by_first_name.items()
+        if any(valid_list_instruction(ed.instruction) for ed in eds)
+    }
 
-        # same element of the list
+    # filter those without values (by taking all the list)
+    grouped_by_first_name = {
+        first_name: eds
+        for first_name, eds in grouped_by_first_name.items()
+        if not all(ed.value is None for ed in eds)
+    }
 
-        # checks
-        if first_name is None or idx is None:
-            raise RuntimeError(
-                f"The column name is a variable info {f(name=info.name)} but the column instruction did not give the index element."
-            )
+    # rearange
 
-        # get sub name
-        first_name_check, info_sub_name = split_name(info.name)
+    list_infos: Dict[List[dict]] = {}
 
-        # checks
-        if first_name != first_name_check:
-            msg = (
-                f"First name from the column instruction and from the column name are not the same {f(row=info.row)}:\n"
-                + f"{first_name} != {first_name_check}\n"
-            )
-            logger.warning(msg=msg)
+    for first_name, eds in grouped_by_first_name.items():
 
-        # store the value
-        list_infos[first_name][idx][info_sub_name] = info.value
+        list_infos[first_name] = []
+
+        for ed in eds:
+            if is_info_list(ed.instruction):
+                # new element of the list
+                first_name, idx = split_instruction(ed.instruction)
+                assert len(list_infos[first_name]) == idx
+                list_infos[first_name].append({})
+            else:
+                # same element of the list
+                pass
+
+            # get sub name
+            first_name_check, info_sub_name = split_name(ed.name)
+            assert first_name_check == first_name
+
+            # store the value
+            list_infos[first_name][-1][info_sub_name] = ed.value
 
     return list_infos
 
@@ -158,9 +162,7 @@ def get_first_names_of_info_list_extracted(
     """
 
     list_name_done = [
-        get_first_name(ed.name)
-        for ed in extraction_datas
-        if ed.instruction is not None or ed.value is not None
+        get_first_name(ed.name) for ed in extraction_datas if ed.instruction is not None
     ]
     # unify
     return list(set(list_name_done))
@@ -227,14 +229,18 @@ def checks_and_filter_info_list(eds_list: List[ExtractionData]) -> List[Extracti
             extra=ListCantBeSepareted(names=separated_list),
         )
 
-    # List cant have different sources
+    eds_list = [ed for ed in eds_list if get_first_name(ed.name) not in separated_list]
+
+    # List cant have different sources except one have a none source
     sources_per_first_names = {
         get_first_name(ed.name): ed.label_source_name for ed in eds_list
     }
     different_first_name = [
         get_first_name(ed.name)
         for ed in eds_list
-        if ed.label_source_name != sources_per_first_names[get_first_name(ed.name)]
+        if (label_expected := sources_per_first_names[get_first_name(ed.name)])
+        and ed.label_source_name
+        and label_expected != ed.label_source_name
     ]
     if different_first_name:
         logger.error(
@@ -274,7 +280,7 @@ def checks_and_filter_info_list(eds_list: List[ExtractionData]) -> List[Extracti
                         first_name=first_name, duplicate_names=duplicates
                     ),
                 )
-                first_names_to_filter.append(first_names_to_filter)
+                first_names_to_filter.append(first_name)
 
             # all values must be empty
             not_empty_values = [ed.name for ed in eds if ed.value is not None]
@@ -284,9 +290,11 @@ def checks_and_filter_info_list(eds_list: List[ExtractionData]) -> List[Extracti
                     + f"Not empty values for names : {not_empty_values}",
                     extra=ListNotEclatedEmptyValues(first_name=first_name),
                 )
-                first_names_to_filter.append(first_names_to_filter)
+                first_names_to_filter.append(first_name)
 
-    eds_list = [ed for ed in eds_list if ed.name not in first_names_to_filter]
+    eds_list = [
+        ed for ed in eds_list if get_first_name(ed.name) not in first_names_to_filter
+    ]
 
     return eds_list
 

@@ -60,11 +60,8 @@ def _write_values_list_info(es: ExcelSheet, infos: InfoValues):
             current_row += 1
             continue
 
-        fist_name = get_first_name(info.name)
-        if fist_name in [name for name, _, _, _ in lists]:
-            raise RuntimeError(
-                f"List named '{first_name}' is at two different part of the config file."
-            )
+        first_name = get_first_name(info.name)
+        assert not first_name in [name for name, _, _, _ in lists]
 
         start = current_row
 
@@ -127,7 +124,7 @@ def _write_values_list_info(es: ExcelSheet, infos: InfoValues):
                 value = info_extracted.get(sub_info.name)
 
                 es.ws.cell(row, Datas.NAME.col, combine(first_name, sub_info.name))
-                es.ws.cell(row, Datas.DESCRIPTION.col, sub_info.desciption)
+                es.ws.cell(row, Datas.DESCRIPTION.col, sub_info.description)
                 es.ws.cell(row, Datas.LABEL_SOURCE_NAME.col, sub_info.label_source_name)
                 if value:
                     es.ws.cell(row, Datas.VALUE.col, value)
