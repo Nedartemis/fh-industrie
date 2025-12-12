@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
-from logging import ERROR, INFO, WARNING  # for the use of the other files
+from logging import ERROR, INFO, WARNING, _nameToLevel  # for the use of the other files
 from typing import List, Optional
 
 from logs_label import LogLabel
@@ -61,6 +61,16 @@ class MyLogger(logging.Logger):
 
     def get_logs_label(self) -> List[LogLabel]:
         return [log.label for log in self.get_logs() if log.label]
+
+    def filter_logs(self, log_label):
+        self.handlers[0].logs = [
+            log for log in self.get_logs() if log.label.__class__ != log_label
+        ]
+
+    def filter_logs_level(self, log_level):
+        self.handlers[0].logs = [
+            log for log in self.get_logs() if _nameToLevel[log.level] > log_level
+        ]
 
     def reset_logs(self):
         self.handlers[0].logs = []

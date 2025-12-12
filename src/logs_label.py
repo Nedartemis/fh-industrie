@@ -22,6 +22,11 @@ class LogLabel(ABC):
 
 
 @dataclass
+class ExcelNotExisting(LogLabel, RuntimeError):
+    excel_path: Path
+
+
+@dataclass
 class NoRightWorksheet(LogLabel, RuntimeError):
     excel_name: str
     page_name: str
@@ -62,11 +67,16 @@ class EmptyInfoExcel(LogLabel):
         )
 
 
-# ------------------- Path -------------------
+# ------------------- File -------------------
 
 
 @dataclass
 class PathNotExisting(LogLabel):
+    path: Path
+
+
+@dataclass
+class ExtensionFileNotSupported(LogLabel):
     path: Path
 
 
@@ -133,12 +143,22 @@ class ListNotEclatedEmptyValues(LogLabel):
 # ------------------- Instruction -------------------
 
 
-# Ind
-
-
 @dataclass
 class InstructionIndMustBeEmpty(LogLabel):
     names_and_rows: List[Tuple[str, int]]
+
+
+# ------------------- Other -------------------
+
+
+@dataclass
+class SourceNotUseful(LogLabel):
+    source: str
+
+
+@dataclass
+class SourceNotGiven(LogLabel):
+    name_source: str
 
 
 if __name__ == "__main__":
