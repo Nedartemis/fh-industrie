@@ -699,7 +699,24 @@ def _excel_equals(path1: Path, path2: Path) -> bool:
 @pytest.mark.parametrize(
     ["filename", "infos_values"],
     [
-        ("simple", iv(inds={"n1": "t1"})),
+        ("ind_one", iv(inds={"n1": "t1"})),
+        ("ind_two", iv(inds={"n1": "t1", "n2": "t2"})),
+        ("lst_one", iv(lists={"n1": [{"s1": "t1"}]})),
+        ("lst_two_elements", iv(lists={"n1": [{"s1": "t1"}, {"s1": "t2"}]})),
+        (
+            "lst_two_elements_description",
+            iv(lists={"n1": [{"s1": "t1"}, {"s1": "t2"}]}),
+        ),
+        (
+            "big",
+            iv(
+                inds={"n1": "t1", "n2": "t2", "n4": "t7"},
+                lists={
+                    "n3": [{"s1": "t3", "s2": "t4"}, {"s1": "t5", "s2": "t6"}],
+                    "n5": [{"s1": "t8"}, {"s1": "t9", "s2": "t10"}],
+                },
+            ),
+        ),
     ],
 )
 def test_fill_config_file_good(filename: str, infos_values: InfoValues):
