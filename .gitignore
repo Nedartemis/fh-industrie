@@ -7,8 +7,12 @@ tmp/
 cache/
 test_docs/
 .vscode
+
+# testsuite
 *_generated.xlsx
+*_rempli.xlsx
 .pytest_cache/
+__pycache__
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
