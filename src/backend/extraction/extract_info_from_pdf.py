@@ -1,16 +1,16 @@
 import os
 from pathlib import Path
-from typing import Dict
+from typing import Dict, List, Optional
 
 import backend.extraction.cache as cache
 from backend.extraction.extract_info_from_natural_language import (
     extract_info_from_natural_language,
 )
-from backend.info_struct.info_extraction_datas import InfoExtractionDatas
-from backend.info_struct.info_values import InfoValues
+from backend.info_struct import InfoExtractionDatas, InfoValues
 from backend.llm.llm_base import LlmBase
 from backend.read_pdf.read_pdf import is_scanned, read_all_pdf
 from logger import logger
+from logs_label import ExtensionFileNotSupported, FileDataError, PathNotExisting
 from vars import DEFAULT_LOGGER, PATH_ROOT, PATH_TEST_DOCS
 
 # ------------------- Public Method -------------------
@@ -22,8 +22,14 @@ def extract_info_from_pdf(
     info_to_extract: InfoExtractionDatas,
 ) -> InfoValues:
 
+    if path_pdf.suffix != ".pdf":
+        raise ExtensionFileNotSupported(path=path_pdf)
+
     # get pages
     pages = _get_pdf_pages(path_pdf)
+
+    if pages is None:
+        return InfoValues.empty()
 
     # extract info from the text
     info_values = extract_info_from_natural_language(
@@ -32,30 +38,6 @@ def extract_info_from_pdf(
         text="\n\n".join(pages[:]),
     )
 
-    # error detection and filter
-    names_to_extract = info_to_extract.get_names()
-    names_all_extracted = info_values.get_names(keep_none_values=True)
-
-    # - found wrong names and filter
-    wrong_names = [name for name in names_all_extracted if name not in names_to_extract]
-    if wrong_names:
-        logger.warning(f"{wrong_names} were extracted but were not asked.")
-        info_values.filter_names(names_to_remove=wrong_names)
-
-    # - those not in the extraction result at all
-    missing_names = [
-        name for name in names_to_extract if name not in names_all_extracted
-    ]
-    if missing_names:
-        logger.warning(f"{missing_names} were completly missing from the extraction.")
-
-    # - those in the extraction result but without values
-    names_extracted_none = info_values.get_name_nones()
-    if names_extracted_none:
-        logger.warning(
-            f"{names_extracted_none} were not extracted. They got a 'None' value."
-        )
-
     # return
     return info_values
 
@@ -63,14 +45,30 @@ def extract_info_from_pdf(
 # ------------------- Private Method -------------------
 
 
-def _get_pdf_pages(pdf_path: Path):
+def _get_pdf_pages(pdf_path: Path) -> Optional[List[str]]:
+
     rel_path_from_root = os.path.relpath(path=pdf_path.resolve(), start=PATH_ROOT)
+
+    if not pdf_path.exists():
+        logger.error(
+            f"pdf path not existing, relative path from root : {rel_path_from_root}",
+            extra=PathNotExisting(path=pdf_path),
+        )
+        return None
 
     pages = cache.load(rel_path_from_root)
 
     if not pages:
         # read pdf
-        pages = read_all_pdf(pdf_path)
+        try:
+            pages = read_all_pdf(pdf_path)
+        except FileDataError:
+            logger.error(
+                f"pdf data error, relative path from root : {rel_path_from_root}",
+                extra=FileDataError(pdf_path),
+            )
+            return None
+
         logger.info(
             f"'{rel_path_from_root}' a été lu et est un pdf {'scanné' if is_scanned(pdf_path) else 'natif'}."
         )

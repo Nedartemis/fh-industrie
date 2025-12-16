@@ -20,8 +20,8 @@ class InfoExtractionDatas:
     def get_names_list_info(self) -> List[Tuple[str, str]]:
         return [
             (first_name, info.name)
-            for first_name, list_info in self.list_infos
-            for info in list_info
+            for first_name, infos in self.list_infos.items()
+            for info in infos
         ]
 
     def get_names(self) -> List[Union[str, Tuple[str, str]]]:

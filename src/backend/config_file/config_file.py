@@ -143,6 +143,13 @@ def _error_detection_config_file_extraction_and_filter(
             continue
         extraction_datas_filtered[name_source] = infos
 
+    # remove the extraction datas that are not in the sources_filtered
+    extraction_datas_filtered = {
+        name_source: infos
+        for name_source, infos in extraction_datas_filtered.items()
+        if name_source in sources_filtered
+    }
+
     # emptiness
     if not sources_filtered:
         logger.error(

@@ -2,10 +2,16 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
-from logging import ERROR, INFO, WARNING, _nameToLevel  # for the use of the other files
+from logging import (  # for the use of the other files
+    DEBUG,
+    ERROR,
+    INFO,
+    WARNING,
+    _nameToLevel,
+)
 from typing import List, Optional
 
-from logs_label import LogLabel
+from logs_label_base import LogLabel
 
 
 def f(**kwargs):
@@ -56,8 +62,9 @@ class MyLogger(logging.Logger):
         if level:
             self.setLevel(level)
 
-    def get_logs(self):
-        return self.handlers[0].logs
+    def get_logs(self, level_to_keep=DEBUG) -> List[Log]:
+        logs: List[Log] = self.handlers[0].logs
+        return [log for log in logs if _nameToLevel[log.level] >= level_to_keep]
 
     def get_logs_label(self) -> List[LogLabel]:
         return [log.label for log in self.get_logs() if log.label]
@@ -67,9 +74,11 @@ class MyLogger(logging.Logger):
             log for log in self.get_logs() if log.label.__class__ != log_label
         ]
 
-    def filter_logs_level(self, log_level):
+    def filter_logs_level(self, log_level_to_keep):
         self.handlers[0].logs = [
-            log for log in self.get_logs() if _nameToLevel[log.level] > log_level
+            log
+            for log in self.get_logs()
+            if _nameToLevel[log.level] >= log_level_to_keep
         ]
 
     def reset_logs(self):

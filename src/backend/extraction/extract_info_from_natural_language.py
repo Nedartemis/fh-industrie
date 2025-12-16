@@ -12,11 +12,12 @@ from backend.info_struct.info_extraction_datas import InfoExtractionDatas
 from backend.info_struct.info_values import InfoValues
 from backend.llm.llm_base import LlmBase
 from logger import logger
+from logs_label import LlmFailedAnswer
 
 # ------------------- Constants -------------------
 
 MAX_TOKENS = 10000
-TEMPERATURE = 1
+TEMPERATURE = 0
 
 
 # ------------------- Public Method -------------------
@@ -28,8 +29,9 @@ def extract_info_from_natural_language(
     text: str,
 ) -> InfoValues:
 
-    if not text:
-        return {}
+    if text == "":
+        logger.info("Text empty : no extraction")
+        return InfoValues(independant_infos={}, list_infos={})
 
     # short list info
 
@@ -44,18 +46,22 @@ def extract_info_from_natural_language(
         if prompt_short_list_info
         else {}
     )
-    if extracted_json_short_list:
+    if extracted_json_short_list is not None:
         # postprocess
         info_values = postprocess_llm_answer_short_list_info(extracted_json_short_list)
+        logger.info(info_values)
     else:
-        logger.error("Failed to extract short and list info.")
+        logger.error(
+            "Failed to extract short and list info.",
+            extra=LlmFailedAnswer(info_to_extract=info_to_extract, text=text),
+        )
         info_values = InfoValues(independant_infos={}, list_infos={})
 
     # exact info
     extracted_exact_infos: Dict[str, str] = {}
     for info in info_to_extract.independant_infos:
         # - filter
-        if not info.exact:
+        if not info.extract_exactly_info:
             continue
 
         # - build prompt
@@ -66,11 +72,15 @@ def extract_info_from_natural_language(
             llm=llm, prompt_system=prompt_system, text_where_to_extract=text
         )
         if not extracted_json_exact:
-            logger.error(f"Failed to extract exact info '{info.name}'")
+            logger.error(
+                f"Failed to extract exact info '{info.name}'",
+                extra=LlmFailedAnswer(info_to_extract=info_to_extract, text=text),
+            )
             continue
 
         logger.info(f"Exact info extracted json : {extracted_json_exact}")
 
+        # - convert answer
         exact_info_text = from_response_llm_exact_info_extract_exact_text(
             text_where_to_search=text, extracted_json=extracted_json_exact
         )
@@ -81,7 +91,9 @@ def extract_info_from_natural_language(
         extracted_exact_infos[info.name] = exact_info_text
 
     # combine
-    return info_values.independant_infos.update(extracted_exact_infos)
+    info_values.independant_infos.update(extracted_exact_infos)
+
+    return info_values
 
 
 # ------------------- Private Method -------------------
@@ -109,7 +121,9 @@ def _response_to_json(text_response: str) -> Optional[dict]:
     return obj
 
 
-def _call_llm(llm: LlmBase, prompt_system: str, text_where_to_extract: str) -> dict:
+def _call_llm(
+    llm: LlmBase, prompt_system: str, text_where_to_extract: str
+) -> Optional[dict]:
 
     messages = llm.build_messages(msg=text_where_to_extract)
 

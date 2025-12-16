@@ -8,17 +8,23 @@ from pdf2image import convert_from_path
 from tqdm import tqdm
 
 from backend.read_pdf.ocr import PytesseractOCR
+from logger import logger
+from logs_label import ExtensionFileNotSupported, FileDataError, PathNotExisting
 
 # ------------------- Public Method -------------------
 
 
 def is_scanned(pdf_path: Path) -> bool:
 
+    _check_ext(pdf_path)
+
     text = "".join(_read_pdf_natiely(pdf_path))
     return not text
 
 
 def read_all_pdf(pdf_path: Path) -> List[str]:
+
+    _check_ext(pdf_path)
 
     if is_scanned(pdf_path):
         return _ocr_pdf(pdf_path)
@@ -29,9 +35,22 @@ def read_all_pdf(pdf_path: Path) -> List[str]:
 # ------------------- Private Method -------------------
 
 
+def _check_ext(pdf_path: Path) -> None:
+    if pdf_path.suffix != ".pdf":
+        raise ExtensionFileNotSupported(path=pdf_path)
+
+
 def _read_pdf_natiely(pdf_path: Path) -> List[str]:
-    with pymupdf.open(pdf_path) as doc:
-        pages = [page.get_text() for page in doc]
+
+    if not pdf_path.exists():
+        raise PathNotExisting(path=pdf_path)
+
+    try:
+        with pymupdf.open(pdf_path) as doc:
+            pages = [page.get_text() for page in doc]
+    except pymupdf.FileDataError:
+        raise FileDataError(path=pdf_path)
+
     return pages
 
 
@@ -63,6 +82,10 @@ def _ocr_pdf(
         language (str, optional): Language for OCR. Default is 'eng'
         dpi (int, optional): DPI for rendering PDF. Higher is better quality but slower.
     """
+
+    if not pdf_path.exists():
+        raise PathNotExisting(path=pdf_path)
+
     ocr = PytesseractOCR(language="fra")
     # ocr = DoctrOCR()
 
@@ -72,10 +95,9 @@ def _ocr_pdf(
         # Convert PDF to images
         try:
             images = convert_from_path(pdf_path, dpi=300)
-            print(f"PDF converted to {len(images)} images.")
+            logger.info(f"PDF converted to {len(images)} images.")
         except Exception as e:
-            print(f"Error converting PDF: {e}")
-            return None
+            raise FileDataError(path=pdf_path)
 
         if pages is None:
             pages = list(range(1, len(images) + 1))

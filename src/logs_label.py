@@ -1,22 +1,9 @@
-from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
-# ------------------- Base -------------------
-
-
-class LogLabel(ABC):
-    def __getitem__(self, key):
-        return self
-
-    def __iter__(self):
-        return iter(["label"])
-
-    # @abstractmethod
-    # def msg(self) -> str:
-    #     pass
-
+from backend.info_struct import InfoExtractionDatas
+from logs_label_base import LogLabel
 
 # ------------------- Excel -------------------
 
@@ -71,13 +58,29 @@ class EmptyInfoExcel(LogLabel):
 
 
 @dataclass
-class PathNotExisting(LogLabel):
+class PathNotExisting(LogLabel, RuntimeError):
     path: Path
+
+    def msg(self):
+        return f"Path '{self.path}' not existing"
 
 
 @dataclass
-class ExtensionFileNotSupported(LogLabel):
+class ExtensionFileNotSupported(LogLabel, RuntimeError):
     path: Path
+
+    def msg(self):
+        return (
+            f"Extension '{self.path.suffix}' is not supported, from path : {self.path}"
+        )
+
+
+@dataclass
+class FileDataError(LogLabel, RuntimeError):
+    path: Path
+
+    def msg(self):
+        return f"File data error when reading file '{self.path}'"
 
 
 # ------------------- Data consistency -------------------
@@ -146,6 +149,38 @@ class ListNotEclatedEmptyValues(LogLabel):
 @dataclass
 class InstructionIndMustBeEmpty(LogLabel):
     names_and_rows: List[Tuple[str, int]]
+
+
+# ------------------- LLM -------------------
+
+
+@dataclass
+class LlmWrongFormat(LogLabel):
+    extracted_json: Any
+
+
+@dataclass
+class LlmFailedAnswer(LogLabel):
+    info_to_extract: InfoExtractionDatas
+    text: str
+
+
+# ------------------- Extraction Result -------------------
+
+
+@dataclass
+class ExtractionAddWrongInfo(LogLabel):
+    info_names: List[str]
+
+
+@dataclass
+class ExtractionLackCompletlyInfo(LogLabel):
+    info_names: List[str]
+
+
+@dataclass
+class ExtractionNotFoundInfo(LogLabel):
+    info_names: List[str]
 
 
 # ------------------- Other -------------------

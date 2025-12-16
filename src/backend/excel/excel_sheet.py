@@ -187,7 +187,7 @@ class ExcelSheet:
         ):
             if not self.get_text_cell(row=row, col=col) is None:
                 logger.info(
-                    f"Excel equality : Sheet '{self.name}' : cell {f(row=row, col=col)} should be empty."
+                    f"Excel equality : Sheet '{self.name}' : cell {f(row=row, col=col)} should be empty, here is the content : '{self.get_text_cell(row=row, col=col)}'."
                 )
                 return False
         return True

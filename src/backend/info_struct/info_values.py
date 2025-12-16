@@ -48,16 +48,20 @@ class InfoValues:
     # }
     list_infos: TYPE_INFO_LIST_VALUES
 
+    @staticmethod
+    def empty() -> "InfoValues":
+        return InfoValues(independant_infos={}, list_infos={})
+
     # ------------------- Generic methods -------------------
 
-    def _stream_ind(self) -> Stream:
+    def _stream_ind(self) -> Stream[TupleInd]:
         lst = [
             TupleInd(name=name, value=value)
             for name, value in self.independant_infos.items()
         ]
         return Stream(lst)
 
-    def _stream_lst(self) -> Stream:
+    def _stream_lst(self) -> Stream[TupleLst]:
         lst = [
             TupleLst(first_name=first_name, idx=idx, sub_name=sub_name, value=value)
             for first_name, l in self.list_infos.items()
@@ -66,7 +70,7 @@ class InfoValues:
         ]
         return Stream(lst)
 
-    def _stream_all(self) -> Stream:
+    def _stream_all(self) -> Stream[TupleAll]:
         l1 = self._stream_ind().map(lambda t: TupleAll(name=t.name, value=t.value)).lst
         l2 = (
             self._stream_lst()
@@ -79,10 +83,10 @@ class InfoValues:
         )
         return Stream(l1 + l2)
 
-    def _store_ind(self, s: Stream) -> None:
+    def _store_ind(self, s: Stream[TupleInd]) -> None:
         self.independant_infos = {t.name: t.value for t in s.lst}
 
-    def _store_lst(self, s: Stream) -> None:
+    def _store_lst(self, s: Stream[TupleLst]) -> None:
         l1 = s.groupby(key=lambda t: t.first_name).lst
 
         d = {}
@@ -120,10 +124,17 @@ class InfoValues:
 
     def get_name_nones(self) -> List[TYPE_NAME]:
         return (
-            self._stream_ind().filter(lambda t: t.value is None).map(lambda t: t.name)
-        ) + self._stream_lst().filter(lambda t: t.value is None).map(
-            lambda t: (t.first_name, t.sub_name)
-        ).unique().lst
+            (
+                self._stream_ind()
+                .filter(lambda t: t.value is None)
+                .map(lambda t: t.name)
+                + self._stream_lst()
+                .filter(lambda t: t.value is None)
+                .map(lambda t: (t.first_name, t.sub_name))
+            )
+            .unique()
+            .lst
+        )
 
     def count_values(self) -> int:
         return self._stream_all().filter(_predicate_keep_none_value(False)).count()
@@ -134,7 +145,7 @@ class InfoValues:
         s = self._stream_ind().filter(lambda t: t.name not in names_to_remove)
         self._store_ind(s)
 
-        s = self._stream_ind().filter(lambda t: t.name not in names_to_remove)
+        s = self._stream_lst().filter(lambda t: t.first_name not in names_to_remove)
         self._store_lst(s)
 
     def update(self, other: "InfoValues") -> None:

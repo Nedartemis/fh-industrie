@@ -1,4 +1,4 @@
-from typing import Dict, List, Tuple
+from typing import Dict, List, NamedTuple, Tuple
 
 from backend.config_file.info_page import Datas, get_excel_sheet
 from backend.config_file.info_page.info_list_helper import (
@@ -12,6 +12,7 @@ from backend.excel.excel_book import ExcelBook
 from backend.excel.excel_sheet import ExcelSheet
 from backend.info_struct.extraction_data import ExtractionData
 from backend.info_struct.info_values import InfoValues
+from logger import logger
 
 # ------------------- Public Method -------------------
 
@@ -48,7 +49,18 @@ def _write_values_independent_info(es: ExcelSheet, infos: InfoValues) -> None:
 def _write_values_list_info(es: ExcelSheet, infos: InfoValues):
 
     # get the (first_name, start row, end row, list of the sub information) of each list
-    lists: List[Tuple[str, int, int, List[ExtractionData]]] = []
+
+    row_info_type = NamedTuple(
+        "row_info",
+        [
+            ("first_name", str),
+            ("start_row", int),
+            ("end_row", int),
+            ("sub_infos", List[ExtractionData]),
+        ],
+    )
+
+    lists: List[row_info_type] = []
     current_row = 1
     max_row = es.get_row_dimension() + 1
     while current_row < max_row:
@@ -61,7 +73,7 @@ def _write_values_list_info(es: ExcelSheet, infos: InfoValues):
             continue
 
         first_name = get_first_name(info.name)
-        assert not first_name in [name for name, _, _, _ in lists]
+        assert not first_name in [e.first_name for e in lists]
 
         start = current_row
 
@@ -84,46 +96,62 @@ def _write_values_list_info(es: ExcelSheet, infos: InfoValues):
 
         # store
         end = current_row - 1
-        lists.append((first_name, start, end, sub_infos))
+        lists.append(
+            row_info_type(
+                first_name=first_name, start_row=start, end_row=end, sub_infos=sub_infos
+            )
+        )
 
-    # filter the list that any of their information have been found
-    lists = [e for e in lists if e[0] in infos.list_infos.keys()]
+    # filter by keeping the lists that any of their information have been found
+    lists = [e for e in lists if e.first_name in infos.list_infos.keys()]
 
     # insert rows
-    for idx, (first_name, _, end, sub_infos) in enumerate(lists):
+    for idx, row_info in enumerate(lists):
 
-        infos_extracted = infos.list_infos.get(first_name)
+        infos_extracted = infos.list_infos.get(row_info.first_name)
 
-        nb_to_add = len(sub_infos) * (len(infos_extracted) - 1)
-        es.ws.insert_rows(end + 1, amount=nb_to_add)
+        nb_to_add = len(row_info.sub_infos) * (len(infos_extracted) - 1)
+        if nb_to_add == 0:
+            continue
+
+        es.ws.insert_rows(row_info.end_row + 1, amount=nb_to_add)
 
         # update start and end
         for idx in range(idx + 1, len(lists)):
-            first_name, start, end, sub_infos = lists[idx]
-            lists[idx] = (first_name, start + nb_to_add, end + nb_to_add, sub_infos)
+            row_info_to_update = lists[idx]
+            lists[idx] = row_info_type(
+                first_name=row_info_to_update.first_name,
+                start_row=row_info_to_update.start_row + nb_to_add,
+                end_row=row_info_to_update.end_row + nb_to_add,
+                sub_infos=row_info_to_update.sub_infos,
+            )
 
     # write on the rows
-    for first_name, start, _, sub_infos in lists:
+    for row_info in lists:
 
-        for idx_ele_lst, info_extracted in enumerate(infos.list_infos.get(first_name)):
+        for idx_ele_lst, info_extracted in enumerate(
+            infos.list_infos.get(row_info.first_name)
+        ):
 
             # compute row
-            row_first = start + idx_ele_lst * len(sub_infos)
+            row_first = row_info.start_row + idx_ele_lst * len(sub_infos)
 
             # write on instuction column
             es.ws.cell(
                 row_first,
                 Datas.INSTRUCTION.col,
-                value=f"{first_name}:{idx_ele_lst + 1}",
+                value=f"{row_info.first_name}:{idx_ele_lst + 1}",
             )
 
             # write sub information
-            for idx_sub_info, sub_info in enumerate(sub_infos):
+            for idx_sub_info, sub_info in enumerate(row_info.sub_infos):
 
                 row = row_first + idx_sub_info
                 value = info_extracted.get(sub_info.name)
 
-                es.ws.cell(row, Datas.NAME.col, combine(first_name, sub_info.name))
+                es.ws.cell(
+                    row, Datas.NAME.col, combine(row_info.first_name, sub_info.name)
+                )
                 es.ws.cell(row, Datas.DESCRIPTION.col, sub_info.description)
                 es.ws.cell(row, Datas.LABEL_SOURCE_NAME.col, sub_info.label_source_name)
                 if value:

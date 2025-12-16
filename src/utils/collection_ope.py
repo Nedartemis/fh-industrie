@@ -21,3 +21,7 @@ def dict_to_list_throw_none(d: Dict[int, T]) -> List[T]:
 
 def find_duplicates(lst: List[Any]) -> List[Any]:
     return [e for e, nb_occurences in Counter(lst).items() if nb_occurences > 1]
+
+
+def list_to_dict_occurences(lst: List[T]) -> Dict[T, int]:
+    return dict(Counter(lst).items())

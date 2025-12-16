@@ -3,6 +3,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 from backend.llm.llm_base import TYPE_MESSAGES, LlmBase
+from logger import logger
 
 
 def _extract_json(s: str) -> dict:
@@ -14,11 +15,17 @@ def _extract_json(s: str) -> dict:
 
 class LlmTest(LlmBase):
 
-    def __init__(self):
+    def __init__(self, force_answer: Optional[str] = None):
         super().__init__()
+        self.force_answer = force_answer
 
-    def build_messages(msg: str) -> TYPE_MESSAGES:
+    def build_messages(self, msg: str) -> TYPE_MESSAGES:
         return [msg]
+
+    @staticmethod
+    def _get_value(name_info: str, text: str) -> Optional[str]:
+        res = re.search(pattern=f"{name_info}:([^ \n,]*)", string=text)
+        return res.group(1) if res else None
 
     def create_message(
         self,
@@ -30,12 +37,20 @@ class LlmTest(LlmBase):
         stream: bool = False,
     ) -> Dict[str, Any]:
 
+        if self.force_answer:
+            return f"```json{'{'}{self.force_answer}{'}'}```"
+
+        text = messages[0]
+
+        # remove comments
         system_preprocessed = re.sub(pattern=r"#.*,", repl=",", string=system)
+
         infos_to_extract = _extract_json(system_preprocessed)
         data = {
-            name: f"info{n+1}"
-            for n, (name, obj) in enumerate(infos_to_extract.items())
+            name: v
+            for name, obj in infos_to_extract.items()
             if isinstance(obj, str)
+            if (v := self._get_value(name_info=name, text=text))
         }
         text = f"```json{json.dumps(data)}```"
         return text

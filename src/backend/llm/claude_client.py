@@ -24,7 +24,7 @@ class ClaudeClient(LlmBase):
             "content-type": "application/json",
         }
 
-    def build_messages(msg: str) -> TYPE_MESSAGES:
+    def build_messages(self, msg: str) -> TYPE_MESSAGES:
         return [{"role": "user", "content": msg}]
 
     def create_message(

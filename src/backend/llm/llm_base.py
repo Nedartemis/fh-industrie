@@ -10,7 +10,7 @@ class LlmBase:
         pass
 
     @abstractmethod
-    def build_messages(msg: str) -> TYPE_MESSAGES:
+    def build_messages(self, msg: str) -> TYPE_MESSAGES:
         pass
 
     @abstractmethod
