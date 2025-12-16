@@ -8,8 +8,10 @@ poppler-utils
 pymupdf
 PyMuPDF
 pytesseract
+pytest
 python-docx
 python-dotenv
+rapidfuzz
 requests
 streamlit
 tqdm
