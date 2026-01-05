@@ -1,13 +1,8 @@
-from dataclasses import dataclass
 from enum import Enum
-from logging import WARNING
-from typing import Dict, List, Optional
-
-from backend.excel.excel_book import ExcelBook
-from backend.excel.excel_sheet import ExcelSheet
-from backend.info_struct.extraction_data import ExtractionData
 
 # ------------------------- Constants -------------------------
+
+LIST_SPLITTER = ":"
 
 
 class Datas(Enum):
@@ -32,27 +27,3 @@ TITLE_ERROR = "Config file header info"
 FIRST_ROW_INFO = 3
 ROW_HEADER = 2
 
-# ------------------------- Consistency -------------------------
-
-
-def check_header(es: ExcelSheet):
-
-    for data in Datas:
-
-        es.check_content_cell(
-            page_name=TITLE_ERROR,
-            row=ROW_HEADER,
-            col=data.col,
-            expected_content=data.header_name,
-            log_level=WARNING,
-        )
-
-
-# ------------------------- Utils -------------------------
-
-
-def get_excel_sheet(eb: ExcelBook) -> ExcelSheet:
-    return eb.get_excel_sheet(NAME_WORKSHEET)
-
-
-# ------------------------- Structure -------------------------

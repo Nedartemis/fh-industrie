@@ -1,13 +1,7 @@
 from typing import Dict, List
 
 import backend.config_file.info_page.info_list_helper as info_list_helper
-from backend.config_file.info_page import (
-    FIRST_ROW_INFO,
-    NAME_WORKSHEET,
-    Datas,
-    check_header,
-    get_excel_sheet,
-)
+from backend.config_file.info_page import FIRST_ROW_INFO, NAME_WORKSHEET, Datas
 from backend.config_file.info_page.info_ind_helper import checks_and_filter_info_ind
 from backend.config_file.info_page.info_list_helper import (
     checks_and_filter_info_list,
@@ -17,7 +11,9 @@ from backend.config_file.info_page.info_list_helper import (
     is_info_list,
     rearange_structure_info_list,
 )
-from backend.excel import ExcelBook, ExcelSheet
+from backend.config_file.info_page.utils import check_header, get_excel_sheet
+from backend.excel.excel_book import ExcelBook
+from backend.excel.excel_sheet import ExcelSheet
 from backend.info_struct import ExtractionData, InfoExtractionDatas, InfoValues
 from logger import f, logger
 from logs_label import EmptyInfoExcel, NameDuplicated

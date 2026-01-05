@@ -2,6 +2,7 @@ import re
 from collections import Counter
 from typing import Dict, List, Optional, Tuple
 
+from backend.config_file.info_page import LIST_SPLITTER
 from backend.info_struct.extraction_data import ExtractionData
 from logger import f, logger
 from logs_label import (
@@ -15,8 +16,6 @@ from logs_label import (
 )
 from utils.collection_ope import find_duplicates
 
-SPLITTER = ":"
-
 # ------------------------- Split -------------------------
 
 
@@ -25,7 +24,9 @@ def valid_list_instruction(instruction: Optional[str]) -> bool:
         return False
 
     return (
-        re.match(pattern=f"[^{SPLITTER}]*{SPLITTER}[0-9]+", string=instruction)
+        re.match(
+            pattern=f"[^{LIST_SPLITTER}]*{LIST_SPLITTER}[0-9]+", string=instruction
+        )
         is not None
     )
 
@@ -36,7 +37,7 @@ def split_instruction(instruction: str) -> Tuple[str, int]:
 
 
 def split_name(s: str) -> Tuple[str, str]:
-    return tuple(s.split(SPLITTER))
+    return tuple(s.split(LIST_SPLITTER))
 
 
 def get_first_name(s: str) -> str:
@@ -48,21 +49,21 @@ def get_sub_name(name: str) -> str:
 
 
 def is_invalid_name(name: str) -> bool:
-    return name.count(SPLITTER) > 1
+    return name.count(LIST_SPLITTER) > 1
 
 
 # ------------------------- Combine -------------------------
 
 
 def combine(first_name: str, sub_name: str) -> str:
-    return f"{first_name}{SPLITTER}{sub_name}"
+    return f"{first_name}{LIST_SPLITTER}{sub_name}"
 
 
 # ------------------------- Predicate -------------------------
 
 
 def is_info_list(name: Optional[str]) -> bool:
-    return name is not None and SPLITTER in name
+    return name is not None and LIST_SPLITTER in name
 
 
 def is_info_ind(name: Optional[str]) -> bool:
@@ -202,7 +203,7 @@ def checks_and_filter_info_list(eds_list: List[ExtractionData]) -> List[Extracti
     invalid_names = [ed.name for ed in eds_list if is_invalid_name(ed.name)]
     if invalid_names:
         logger.error(
-            f"Config file : Information name with more than one '{SPLITTER}' are not handled : {[invalid_names]}",
+            f"Config file : Information name with more than one '{LIST_SPLITTER}' are not handled : {[invalid_names]}",
             extra=ListTooMuchSplitter(invalid_names),
         )
         eds_list = [ed for ed in eds_list if not is_invalid_name(ed.name)]

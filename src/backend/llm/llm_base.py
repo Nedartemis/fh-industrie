@@ -22,5 +22,6 @@ class LlmBase:
         max_tokens: int = 1024,
         temperature: float = 0.7,
         stream: bool = False,
+        top_p: Optional[float] = None,
     ) -> Dict[str, Any]:
         pass

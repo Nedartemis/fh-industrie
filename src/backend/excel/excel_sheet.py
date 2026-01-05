@@ -1,28 +1,53 @@
-from itertools import product
-from typing import Callable, List, Optional, Tuple
+from copy import copy
+from typing import Any, Callable, List, Optional, Tuple
 
-import openpyxl.cell.rich_text
+from openpyxl.cell.rich_text import CellRichText, TextBlock
+from openpyxl.styles.fonts import Font
+from openpyxl.workbook import Workbook
 from openpyxl.worksheet.worksheet import Worksheet
 
+from backend.excel.cell import Cell
+from backend.table.table_base import TableBase
 from logger import WARNING, f, logger
 from logs_label import EmptynessExcelCell, ExactnessExcelCell, FullnessExcelCell
 
 
-class ExcelSheet:
+class ExcelSheet(Cell, TableBase):
     """Wrapper around openpyxl Worksheet"""
 
-    def __init__(self, ws: Worksheet, name: str):
+    def __init__(self, ws: Worksheet, name: str, wb: Workbook):
         self.ws = ws
         self.name = name
+        self.wb = wb
 
     # ------------------- Getter -------------------
 
+    @staticmethod
+    def none_transformation(s: Optional[Any]) -> Optional[Any]:
+        return None if (s is None or s == "" or s == "None") else s
+
+    def get_cell(self, row: int, col: int) -> Cell:
+
+        c = self.ws.cell(row, col)
+        # assert isinstance(font, Font), f"type : {type(font)}"
+
+        return Cell(
+            row=row,
+            col=col,
+            value=ExcelSheet.none_transformation(self.ws.cell(row, col).value),
+            str=self.get_text_cell(row, col),
+            font=c.font,
+            fill=c.fill,
+            border=c.border,
+            alignment=c.alignment,
+            number_format=c.number_format,
+            protection=c.protection,
+            has_style=c.has_style,
+        )
+
     def get_text_cell(self, row: int, col: int) -> Optional[str]:
         s = str(self.ws.cell(row, col).value).strip()
-        return None if s is None or s == "" or s == "None" else s
-
-    def get_dimensions(self) -> Tuple[int, int]:
-        return (self.get_row_dimension(), self.get_col_dimension())
+        return ExcelSheet.none_transformation(s)
 
     def get_row_dimension(self) -> int:
         return self.ws.max_row
@@ -31,6 +56,12 @@ class ExcelSheet:
         return self.ws.max_column
 
     # ------------------- Modifiers -------------------
+
+    def insert_rows(self, row: int, amount: int) -> None:
+        if amount == 0:
+            return
+
+        self.ws.insert_rows(row, amount=amount)
 
     def replace_text_in_cell(
         self,
@@ -52,7 +83,7 @@ class ExcelSheet:
 
             # write
             self.ws.cell(row, col, value=cell_value)
-        elif isinstance(cell_value, openpyxl.cell.rich_text.CellRichText):
+        elif isinstance(cell_value, CellRichText):
             # replace
             for i, e in enumerate(cell_value):
                 text = e if isinstance(e, str) else e.text
@@ -63,13 +94,18 @@ class ExcelSheet:
                 if isinstance(e, str):
                     cell_value[i] = text
                 else:
-                    cell_value[i] = openpyxl.cell.rich_text.TextBlock(e.font, text)
+                    cell_value[i] = TextBlock(e.font, text)
 
                 self.ws.cell(row, col, value=cell_value)
         else:
             raise ValueError(f"Excel cell type not implemmented : {type(cell_value)}")
 
         return nb_changes
+
+    def erase_cell(self, row: int, col: int) -> None:
+        cell = self.ws.cell(row=row, column=col)
+        cell.value = ""
+        cell.font = Font()
 
     # ------------------- Checkers -------------------
 
@@ -167,75 +203,40 @@ class ExcelSheet:
             )
         return empty_cols
 
-    # ------------------- Predicate -------------------
+    # ------------------- Copy -------------------
 
-    def equals_cell_text(self, other: "ExcelSheet", row: int, col: int) -> bool:
-        t1 = self.get_text_cell(row=row, col=col)
-        t2 = other.get_text_cell(row=row, col=col)
-        if t1 != t2:
-            logger.info(
-                f"Excel equality : Sheet '{self.name}' : {f(row=row, col=col)}, '{t1}' != '{t2}'"
-            )
-            return False
+    def copy_cell(self, src_cell: Cell, row: int, col: int) -> None:
 
-        return True
+        dst_cell = self.ws.cell(row=row, column=col)
 
-    def is_empty(self, row_min: int, row_max: int, col_min: int, col_max: int) -> bool:
-        for row, col in product(
-            range(row_min, row_max + 1),
-            range(col_min, col_max + 1),
-        ):
-            if not self.get_text_cell(row=row, col=col) is None:
-                logger.info(
-                    f"Excel equality : Sheet '{self.name}' : cell {f(row=row, col=col)} should be empty, here is the content : '{self.get_text_cell(row=row, col=col)}'."
-                )
-                return False
-        return True
+        # Value (str, number, or CellRichText)
+        if isinstance(src_cell.value, CellRichText):
+            dst_cell.value = copy(src_cell.value)
+        else:
+            dst_cell.value = src_cell.value
 
-    def equals(self, other: "ExcelSheet") -> bool:
-
-        min_dim_row = min(self.get_row_dimension(), other.get_row_dimension())
-        min_dim_col = min(self.get_col_dimension(), other.get_col_dimension())
-
-        # # check equality
-        for row, col in product(range(1, min_dim_row + 1), range(1, min_dim_col + 1)):
-            if not self.equals_cell_text(other, row=row, col=col):
-                return False
-
-        # check emptyness
-        return (
-            self.is_empty(
-                row_min=min_dim_row + 1,
-                row_max=self.get_row_dimension(),
-                col_min=1,
-                col_max=self.get_col_dimension(),
-            )
-            and self.is_empty(
-                row_min=1,
-                row_max=self.get_row_dimension(),
-                col_min=min_dim_col + 1,
-                col_max=self.get_col_dimension(),
-            )
-            and other.is_empty(
-                row_min=min_dim_row + 1,
-                row_max=other.get_row_dimension(),
-                col_min=1,
-                col_max=other.get_col_dimension(),
-            )
-            and other.is_empty(
-                row_min=1,
-                row_max=other.get_row_dimension(),
-                col_min=min_dim_col + 1,
-                col_max=other.get_col_dimension(),
-            )
-        )
+        # Style objects (MUST use copy)
+        if src_cell.has_style:
+            dst_cell.font = copy(src_cell.font)
+            dst_cell.fill = copy(src_cell.fill)
+            dst_cell.border = copy(src_cell.border)
+            dst_cell.alignment = copy(src_cell.alignment)
+            dst_cell.number_format = src_cell.number_format
+            dst_cell.protection = copy(src_cell.protection)
 
 
 if __name__ == "__main__":
     from backend.excel.excel_book import ExcelBook
-    from vars import PATH_TEST_DOCS
+    from vars import PATH_TEST_DOCS, PATH_TEST_DOCS_TESTSUITE
 
-    path = PATH_TEST_DOCS / "simple_extraction" / "fichier_configuration.xlsx"
+    path = PATH_TEST_DOCS_TESTSUITE / "excel" / "equals" / "merged_cell.xlsx"
 
-    es = ExcelBook(path).get_excel_sheet("Sources")
-    print(es.get_dimensions())
+    from openpyxl.cell.cell import MergedCell
+
+    es = ExcelBook(path).first_es
+    print(type(es.ws.cell(1, 1)))
+    c = es.ws.cell(1, 2)
+    assert isinstance(c, MergedCell)
+    for e in es.ws.merged_cells.ranges:
+        print(e, type(e))
+    print(type(es.ws.cell(2, 1)))

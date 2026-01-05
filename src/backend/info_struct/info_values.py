@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from typing import Callable, Dict, List, NamedTuple, Optional, Tuple, TypeVar, Union
 
-from backend.config_file.info_page.info_list_helper import SPLITTER
-from utils.collection_ope import dict_to_list
+from backend.config_file.info_page import LIST_SPLITTER
 from utils.stream import Stream
 
 TYPE_NAME = Union[str, Tuple[str, str]]
@@ -76,7 +75,7 @@ class InfoValues:
             self._stream_lst()
             .map(
                 lambda t: TupleAll(
-                    name=f"{t.first_name}{SPLITTER}{t.sub_name}", value=t.value
+                    name=f"{t.first_name}{LIST_SPLITTER}{t.sub_name}", value=t.value
                 )
             )
             .lst

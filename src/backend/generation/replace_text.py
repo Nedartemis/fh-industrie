@@ -1,49 +1,81 @@
 import re
-from typing import List, Tuple
+from dataclasses import dataclass
+from typing import Callable, Dict, Tuple
 
 import unidecode
+
+from backend.generation.constants import BORDER_LEFT, BORDER_RIGHT, HARMONIZE_LABEL_INFO
+from logs_label import DuplicatesNameAfterHarmonization
+from utils.collection_ope import find_duplicates
+
+
+@dataclass
+class ReplaceRes:
+    changed_text: str
+    nb_changes: int
 
 
 def replace_text(
     s: str,
-    pair_old_new: List[Tuple[str, str]],
-    border_left: str,
-    border_right: str,
-    do_harmonization: bool,
-) -> Tuple[str, int]:
+    pair_old_new: Dict[str, str],
+    border_left: str = BORDER_LEFT,
+    border_right: str = BORDER_RIGHT,
+    do_harmonization: bool = HARMONIZE_LABEL_INFO,
+) -> ReplaceRes:
     # choose the string transformer
-    tr = lambda x: (
-        unidecode.unidecode(x).lower().replace(" ", "_")
+    tr = (
+        (lambda x: unidecode.unidecode(x).lower().replace(" ", "_"))
         if do_harmonization
         else lambda x: x
     )
 
-    def _replace_text_rec(s: str, n_changes: int) -> Tuple[str, int]:
+    old_duplicates_after_harmonization = find_duplicates(
+        [tr(old) for old in pair_old_new]
+    )
+    if old_duplicates_after_harmonization:
+        raise DuplicatesNameAfterHarmonization(names=old_duplicates_after_harmonization)
+
+    pair_old_new_tr = {tr(old): new for old, new in pair_old_new.items()}
+
+    def _replace_text_rec(s: str, nb_changes: int) -> Tuple[str, int]:
         matches = re.finditer(
             pattern=f"{border_left}[^{border_right}]*{border_right}", string=s
         )
 
         for e in matches:
-            for old, new in pair_old_new:
-                # take sub string
-                word = s[e.start(0) + len(border_left) : e.end(0) - len(border_right)]
 
-                # check equality
-                if tr(old) == tr(word):
+            # take sub string
+            word = s[e.start(0) + len(border_left) : e.end(0) - len(border_right)]
 
-                    # replace string
-                    s = s[: e.start(0)] + (new if new else "") + s[e.end(0) :]
+            new = pair_old_new_tr.get(tr(word), None)
 
-                    # recursive call because regex matches indexes might have change
-                    return _replace_text_rec(
-                        s=s,
-                        n_changes=n_changes + 1,
-                    )
+            if new is not None:
 
-        return s, n_changes
+                # replace string
+                s = s[: e.start(0)] + (new if new else "") + s[e.end(0) :]
+
+                # recursive call because regex matches indexes might have change
+                return _replace_text_rec(
+                    s=s,
+                    nb_changes=nb_changes + 1,
+                )
+
+        return s, nb_changes
 
     # first call
-    return _replace_text_rec(s=s, n_changes=0)
+    res = _replace_text_rec(s=s, nb_changes=0)
+    return ReplaceRes(changed_text=res[0], nb_changes=res[1])
+
+
+def build_replace_text(
+    pair_old_new: Dict[str, str],
+) -> Callable[[str], Tuple[str, int]]:
+
+    def replace_text_custom(s: str) -> Tuple[str, int]:
+        res = replace_text(s, pair_old_new=pair_old_new)
+        return res.changed_text, res.nb_changes
+
+    return replace_text_custom
 
 
 if __name__ == "__main__":

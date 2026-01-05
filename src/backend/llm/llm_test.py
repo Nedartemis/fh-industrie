@@ -9,7 +9,7 @@ from logger import logger
 def _extract_json(s: str) -> dict:
     res = re.search(pattern="```json(.*)```", string=s, flags=re.DOTALL)
     extracted_str = res.group(1)
-    print(extracted_str)
+    logger.info(extracted_str)
     return json.loads(extracted_str)
 
 
@@ -35,6 +35,7 @@ class LlmTest(LlmBase):
         max_tokens: int = 1024,
         temperature: float = 0.7,
         stream: bool = False,
+        top_p: Optional[float   ] = None,
     ) -> Dict[str, Any]:
 
         if self.force_answer:

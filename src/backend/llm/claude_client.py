@@ -35,6 +35,7 @@ class ClaudeClient(LlmBase):
         max_tokens: int = 1024,
         temperature: float = 0.7,
         stream: bool = False,
+        top_p: Optional[float] = None,
     ) -> Dict[str, Any]:
         """
         Create a message using the Claude API.
@@ -61,6 +62,7 @@ class ClaudeClient(LlmBase):
             "max_tokens": max_tokens,
             "temperature": temperature,
             "stream": stream,
+            "top_p": top_p,
         }
 
         if system:
@@ -74,3 +76,14 @@ class ClaudeClient(LlmBase):
             )
 
         return response.json()["content"][0]["text"]
+
+
+if __name__ == "__main__":
+    llm = ClaudeClient()
+
+    res = llm.create_message(
+        messages=llm.build_messages(msg="Comment je m'appelle"),
+        top_p=1,
+        temperature=0,
+    )
+    print(res)

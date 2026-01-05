@@ -18,7 +18,7 @@ from logs_label import LlmFailedAnswer
 
 MAX_TOKENS = 10000
 TEMPERATURE = 0
-
+TOP_P = 1
 
 # ------------------- Public Method -------------------
 
@@ -132,6 +132,7 @@ def _call_llm(
         messages=messages,
         max_tokens=MAX_TOKENS,
         temperature=TEMPERATURE,
+        top_p=TOP_P,
     )
 
     return _response_to_json(text_response)

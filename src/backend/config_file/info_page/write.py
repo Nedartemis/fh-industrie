@@ -1,6 +1,6 @@
-from typing import Dict, List, NamedTuple, Tuple
+from typing import List, NamedTuple
 
-from backend.config_file.info_page import Datas, get_excel_sheet
+from backend.config_file.info_page import Datas
 from backend.config_file.info_page.info_list_helper import (
     combine,
     get_first_name,
@@ -8,6 +8,7 @@ from backend.config_file.info_page.info_list_helper import (
     split_name,
 )
 from backend.config_file.info_page.read import InfoValues, read_line
+from backend.config_file.info_page.utils import get_excel_sheet
 from backend.excel.excel_book import ExcelBook
 from backend.excel.excel_sheet import ExcelSheet
 from backend.info_struct.extraction_data import ExtractionData
@@ -106,7 +107,7 @@ def _write_values_list_info(es: ExcelSheet, infos: InfoValues):
     lists = [e for e in lists if e.first_name in infos.list_infos.keys()]
 
     # insert rows
-    for idx, row_info in enumerate(lists):
+    for idx_row_info, row_info in enumerate(lists):
 
         infos_extracted = infos.list_infos.get(row_info.first_name)
 
@@ -114,10 +115,22 @@ def _write_values_list_info(es: ExcelSheet, infos: InfoValues):
         if nb_to_add == 0:
             continue
 
-        es.ws.insert_rows(row_info.end_row + 1, amount=nb_to_add)
+        # insert
+        es.insert_rows(row=row_info.end_row + 1, amount=nb_to_add)
+
+        # copy content
+        for idx in range(len(infos_extracted) - 1):
+
+            es.copy_rectangle(
+                from_row=row_info.start_row,
+                from_col=1,
+                to_row=row_info.end_row + 1 + idx * len(row_info.sub_infos),
+                to_col=1,
+                nb_row=len(row_info.sub_infos),
+            )
 
         # update start and end
-        for idx in range(idx + 1, len(lists)):
+        for idx in range(idx_row_info + 1, len(lists)):
             row_info_to_update = lists[idx]
             lists[idx] = row_info_type(
                 first_name=row_info_to_update.first_name,
@@ -149,10 +162,5 @@ def _write_values_list_info(es: ExcelSheet, infos: InfoValues):
                 row = row_first + idx_sub_info
                 value = info_extracted.get(sub_info.name)
 
-                es.ws.cell(
-                    row, Datas.NAME.col, combine(row_info.first_name, sub_info.name)
-                )
-                es.ws.cell(row, Datas.DESCRIPTION.col, sub_info.description)
-                es.ws.cell(row, Datas.LABEL_SOURCE_NAME.col, sub_info.label_source_name)
                 if value:
                     es.ws.cell(row, Datas.VALUE.col, value)

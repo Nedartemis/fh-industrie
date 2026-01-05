@@ -1,5 +1,4 @@
 """Generation module"""
 
-BORDER_LEFT = "{"
-BORDER_RIGHT = "}"
-HARMONIZE_LABEL_INFO = True
+from backend.generation.fill_template import fill_template
+
