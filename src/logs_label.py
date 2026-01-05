@@ -196,5 +196,15 @@ class SourceNotGiven(LogLabel):
     name_source: str
 
 
+@dataclass
+class DuplicatesNameAfterHarmonization(LogLabel, RuntimeError):
+    names: str
+
+
+@dataclass
+class GenerationWrongInstructionFormat(LogLabel):
+    tracabilities: List[Any]
+
+
 if __name__ == "__main__":
     pass
