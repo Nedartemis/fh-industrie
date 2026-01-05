@@ -20,7 +20,7 @@ from backend.config_file.info_page.read import (
     read_info_values,
 )
 from backend.config_file.source_page import TYPE_SOURCES, read_source_page
-from backend.excel import ExcelBook
+from backend.excel.excel_book import ExcelBook
 from backend.info_struct import ExtractionData, InfoExtractionDatas, InfoValues
 from logger import ERROR, logger
 from logs_label import (
@@ -671,6 +671,10 @@ def _excel_equals(path1: Path, path2: Path) -> bool:
             biv(lists={"n1": [{"s1": "t1"}, {"s1": "t2"}]}),
         ),
         (
+            "lst_three_elements",
+            biv(lists={"n1": [{"s1": "v1"}, {"s1": "v2"}, {"s1": "v3"}]}),
+        ),
+        (
             "lst_only_second_found",
             biv(lists={"n1": [{"s2": "t2"}]}),
         ),
@@ -711,9 +715,24 @@ def _excel_equals(path1: Path, path2: Path) -> bool:
                 },
             ),
         ),
+        (
+            "style",
+            biv(
+                inds={"n1": "t1", "n2": "t2", "n4": "t7"},
+                lists={
+                    "n3": [
+                        {"s1": "t3", "s2": "t4"},
+                        {"s1": "t5", "s2": "t6"},
+                        {"s1": "t11", "s2": "t12"},
+                    ],
+                    "n5": [{"s1": "t8"}, {"s1": "t9", "s2": "t10"}],
+                },
+            ),
+        ),
     ],
 )
 def test_fill_config_file_good(filename: str, infos_values: InfoValues):
+
     actual_path = _fill_config_file(filename, folder="good", infos=infos_values)
     expected_path = (
         PATH_TEST_DOCS_TESTSUITE / f"fill_config_file/good/{filename}_expected.xlsx"

@@ -13,7 +13,7 @@ from helper_testsuite import (
     wrapper_try,
 )
 
-from backend.excel import ExcelBook
+from backend.excel.excel_book import ExcelBook
 from backend.extraction.extract_from_txt import extract_from_txt
 from backend.extraction.extract_info_from_config_file_and_documents import (
     extract_infos_from_config_file_and_files_tree,
