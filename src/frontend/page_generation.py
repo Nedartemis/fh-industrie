@@ -6,7 +6,7 @@ from download_helper import read_data_conditionned
 from page import Page
 
 import frontend.helper
-from backend.generation.fill_template import fill_template
+from backend import fill_template
 from frontend.description import build_description
 from frontend.upload_button import build_upload_button_one_file
 from vars import PATH_TMP
@@ -68,7 +68,9 @@ class PageGeneration(Page):
 
             # call the backend for generation
             generated_file_path = fill_template(
-                infos_path_file=filled_config_file.path, template_path=template.path
+                infos_path_file=filled_config_file.path,
+                template_path=template.path,
+                path_folder_output=PATH_TMP,
             )
 
             # update global variables

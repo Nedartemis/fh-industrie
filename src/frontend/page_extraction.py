@@ -6,10 +6,7 @@ from download_helper import read_data_conditionned
 from page import Page
 
 import frontend.helper
-import io_helper
-from backend.extract_info_from_config_file_and_documents import (
-    extract_infos_from_tree_and_config_file,
-)
+from backend import extract_infos_from_config_file_and_files_tree
 from frontend.description import build_description
 from frontend.upload_button import (
     build_upload_button_multiple_files,
@@ -80,7 +77,7 @@ class PageExtraction(Page):
                 os.symlink(src=doc.path, dst=dir_extraction / doc.name)
 
             # call the backend for extraction
-            infos_file_path = extract_infos_from_tree_and_config_file(
+            infos_file_path = extract_infos_from_config_file_and_files_tree(
                 path_config_file=config_file.path, path_folder_sources=dir_extraction
             )
 
