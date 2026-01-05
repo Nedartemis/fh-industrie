@@ -7,6 +7,8 @@ tmp/
 cache/
 test_docs/
 .vscode
+*secret*
+*_actual*
 
 # testsuite
 *_generated.xlsx
