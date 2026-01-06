@@ -12,7 +12,7 @@ from logger import WARNING, f, logger
 from logs_label import EmptynessExcelCell, ExactnessExcelCell, FullnessExcelCell
 
 
-class ExcelSheet(Cell, TableBase):
+class ExcelSheet(TableBase[Cell]):
     """Wrapper around openpyxl Worksheet"""
 
     def __init__(self, ws: Worksheet, name: str, wb: Workbook):

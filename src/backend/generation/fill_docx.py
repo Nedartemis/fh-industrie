@@ -43,7 +43,7 @@ def fill_template_docx(
 
     # ind
     logger.debug("Replace independant infos")
-    nb_changes = _replace_text_paragraphs(doc, doc.paragraphs, infos)
+    nb_changes = _replace_text_paragraphs_inds(doc, doc.paragraphs, infos)
     # list
     logger.debug("Replace lists infos without tables")
     nb_changes += _fill_list_without_table(doc, infos)
@@ -60,7 +60,9 @@ def fill_template_docx(
 # ------------------- Private Method -------------------
 
 
-def _replace_text_paragraphs(doc: Docx, paragraphs: List[Paragraph], infos: InfoValues):
+def _replace_text_paragraphs_inds(
+    doc: Docx, paragraphs: List[Paragraph], infos: InfoValues
+):
     return replace_text_paragraphs(
         doc, paragraphs, build_replace_text(infos.independant_infos)
     )
@@ -74,7 +76,7 @@ def _fill_tables(doc: Docx, infos: InfoValues) -> int:
     for table in doc.tables:
         for row in table.rows:
             for cell in row.cells:
-                nb_changes += _replace_text_paragraphs(doc, cell.paragraphs, infos)
+                nb_changes += _replace_text_paragraphs_inds(doc, cell.paragraphs, infos)
 
     # list
     for table in doc.tables:
@@ -182,6 +184,7 @@ def _fill_list_without_table(doc: Docx, infos: InfoValues) -> int:
         doc.paragraphs[idx]
         for instr in list_instructions
         for idx in (instr.start.idx_paragraph, instr.end.idx_paragraph)
+        if instr.first_name in infos.list_infos
     ]
     for p in paragraphs_to_remove:
         remove_paragraph(p)

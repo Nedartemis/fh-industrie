@@ -1,10 +1,12 @@
 import itertools
-from typing import List
+from dataclasses import dataclass
+from typing import List, Tuple
 
 from backend.generation.list.fill_list_helper import (
     BORDER_LEFT,
     BORDER_RIGHT,
     SPLITTER,
+    ListInstruction,
     RowInstruction,
     build_fullname_info,
     error_generation_instruction_format,
@@ -48,7 +50,16 @@ def is_the_table_a_table_list(table: TableBase[CELL_TYPE]) -> bool:
     return f"{BORDER_LEFT}instruction{SPLITTER}colonne{BORDER_RIGHT}" in text
 
 
-def replace_table_list(table: TableBase[CELL_TYPE], infos: InfoValues) -> int:
+@dataclass
+class ReplaceTableListRes[CELL_TYPE]:
+    nb_changes: int
+    all_has_been_filled: bool
+    lists_instructions_filled: List[ListInstruction[CELL_TYPE]]
+
+
+def replace_table_list(
+    table: TableBase[CELL_TYPE], infos: InfoValues
+) -> ReplaceTableListRes[CELL_TYPE]:
 
     logger.debug("replace_table_list")
 
@@ -146,4 +157,16 @@ def replace_table_list(table: TableBase[CELL_TYPE], infos: InfoValues) -> int:
 
     logger.debug(f"Table list changes : {nb_changes}")
 
-    return nb_changes
+    res = ReplaceTableListRes(
+        nb_changes=nb_changes,
+        all_has_been_filled=all(
+            instr.first_name in infos.list_infos for instr in lists_instructions
+        ),
+        lists_instructions_filled=[
+            instr
+            for instr in lists_instructions
+            if instr.first_name in infos.list_infos
+        ],
+    )
+    logger.debug(res)
+    return res

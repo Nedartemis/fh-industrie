@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict
 
 import pytest
@@ -6,6 +7,7 @@ from helper_testsuite import biv, wrapper_test_good, wrapper_try
 from backend.excel.excel_book import ExcelBook
 from backend.generation.fill_docx import fill_template_docx
 from backend.generation.fill_excel import fill_template_excel
+from backend.generation.fill_template import fill_template
 from backend.generation.replace_text import replace_text
 from backend.info_struct import InfoValues
 from backend.my_docx.docx_helper import docx_equals
@@ -103,6 +105,7 @@ def test_replace_text_raise():
         ),
         ("hyperlink", biv()),
         ("hyperlink_between_text", biv({"n1": "v1", "n2": "v2"})),
+        ("ind_none", biv(inds={"n1": None, "n2": "v2"})),
         # list table
         ("list_table", biv(lists={"n1": [{"s1": "v1", "s2": "v2"}]})),
         ("list_table_same_row", biv(lists={"n1": [{"s1": "v1"}]})),
@@ -153,6 +156,7 @@ def test_replace_text_raise():
             ),
         ),
         ("list_sin_table_styles", biv(lists={"n1": [{"s1": "v1", "s2": "v2"}]})),
+        ("list_sin_table_empty_infos", biv(lists={})),
     ],
 )
 def test_fill_docx(filename: str, infos: InfoValues):
@@ -201,6 +205,8 @@ def test_fill_docx(filename: str, infos: InfoValues):
             "list_replace_and_dont_replace",
             biv(lists={"n1": [{"s1": "v1", "s2": "v2"}]}),
         ),
+        ("list_empty_infos", biv(lists={})),
+        ("list_empty_half_infos", biv(lists={"n1": [{"s1": "v1", "s2": "v2"}]})),
     ],
 )
 def test_fill_xlsx(filename: str, infos: InfoValues):
@@ -210,8 +216,45 @@ def test_fill_xlsx(filename: str, infos: InfoValues):
     path_output = path / f"{filename}_actual.xlsx"
     path_expected = path / f"{filename}_expected.xlsx"
 
-    def f():
+    def runnable():
         fill_template_excel(path_excel=path_input, infos=infos, path_output=path_output)
         assert ExcelBook(path_output).equals(ExcelBook(path_expected))
 
-    wrapper_test_good(runnable=f)
+    wrapper_test_good(runnable=runnable)
+
+
+# ------------------- General -------------------
+
+
+@pytest.mark.parametrize(
+    ["template_filename"],
+    [
+        ("excel_ind.xlsx",),
+        ("docx_ind.docx",),
+    ],
+)
+def test_fill_template_general(template_filename: str):
+
+    path = PATH_TEST_DOCS_TESTSUITE / "generation/general"
+    tfp = Path(template_filename)
+    template_path = path / template_filename
+    infos_path_file = path / f"{tfp.stem}_config_file.xlsx"
+    expected_generated_path = path / f"{tfp.stem}_expected{tfp.suffix}"
+
+    def runnable():
+        generated_file = fill_template(
+            infos_path_file=infos_path_file,
+            template_path=template_path,
+            path_folder_output=path,
+        )
+
+        if tfp.suffix == ".docx":
+            assert docx_equals(
+                d1=Docx(generated_file), d2=Docx(expected_generated_path)
+            )
+        elif tfp.suffix == ".xlsx":
+            assert ExcelBook(generated_file).equals(ExcelBook(expected_generated_path))
+        else:
+            assert False
+
+    wrapper_test_good(runnable=runnable)

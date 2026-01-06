@@ -15,7 +15,7 @@ from backend.config_file.info_page.utils import check_header, get_excel_sheet
 from backend.excel.excel_book import ExcelBook
 from backend.excel.excel_sheet import ExcelSheet
 from backend.info_struct import ExtractionData, InfoExtractionDatas, InfoValues
-from logger import f, logger
+from logger import INFO, f, logger
 from logs_label import EmptyInfoExcel, NameDuplicated
 
 # ------------------------- Utils -------------------------
@@ -79,6 +79,7 @@ def read_info_page(eb: ExcelBook) -> List[ExtractionData]:
             page_name=NAME_WORKSHEET,
             row=current_row,
             header_name_cols=mandatory_cols_execpt_name,
+            log_level=INFO,
         )
 
         # store infos

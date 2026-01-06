@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Callable, Dict, Tuple
+from typing import Callable, Dict, Optional, Tuple
 
 import unidecode
 
@@ -17,7 +17,7 @@ class ReplaceRes:
 
 def replace_text(
     s: str,
-    pair_old_new: Dict[str, str],
+    pair_old_new: Dict[str, Optional[str]],
     border_left: str = BORDER_LEFT,
     border_right: str = BORDER_RIGHT,
     do_harmonization: bool = HARMONIZE_LABEL_INFO,
@@ -68,7 +68,7 @@ def replace_text(
 
 
 def build_replace_text(
-    pair_old_new: Dict[str, str],
+    pair_old_new: Dict[str, Optional[str]],
 ) -> Callable[[str], Tuple[str, int]]:
 
     def replace_text_custom(s: str) -> Tuple[str, int]:

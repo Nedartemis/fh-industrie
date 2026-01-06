@@ -6,9 +6,11 @@ from openpyxl.styles.borders import Border
 from openpyxl.styles.fills import PatternFill
 from openpyxl.styles.fonts import Font
 
+from backend.table.cell_base import CellBase
+
 
 @dataclass
-class Cell:
+class Cell(CellBase):
     row: int
     col: int
     value: Optional[Union[CellRichText, str]]
