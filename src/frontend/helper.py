@@ -18,3 +18,8 @@ def columns(n: int) -> List[DeltaGenerator]:
     )
 
     return st.columns(n, border=False)
+
+
+def text_success_failed(message: str, failed: bool) -> None:
+    func = st.error if failed else st.success
+    func(message)

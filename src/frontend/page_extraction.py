@@ -12,6 +12,7 @@ from frontend.upload_button import (
     build_upload_button_multiple_files,
     build_upload_button_one_file,
 )
+from logger import ERROR, logger
 from vars import PATH_TMP, SUPPORTED_FILES_EXT_EXTRACTION
 
 
@@ -77,17 +78,28 @@ class PageExtraction(Page):
                 os.symlink(src=doc.path, dst=dir_extraction / doc.name)
 
             # call the backend for extraction
-            infos_file_path = extract_infos_from_config_file_and_files_tree(
-                path_config_file=config_file.path, path_folder_sources=dir_extraction
-            )
+            try:
+                infos_file_path = extract_infos_from_config_file_and_files_tree(
+                    path_config_file=config_file.path,
+                    path_folder_sources=dir_extraction,
+                )
+                failed = False
+            except:
+                failed = True
+
+            if len(logger.get_logs(level_to_keep=ERROR)) > 0:
+                failed = True
 
             # update global variables
-            st.session_state.infos_path_file = infos_file_path
-            st.session_state.enable_download_extraction = True
-            st.session_state.count_extraction += 1
+            if not failed:
+                st.session_state.infos_path_file = infos_file_path
+                st.session_state.enable_download_extraction = True
+                st.session_state.count_extraction += 1
+
+            st.session_state.extraction_failed = failed
 
         # button extraction
-        col1.button(
+        button_extraction_clicked = col1.button(
             label="Extraire",
             on_click=extract,
             disabled=not config_file or not documents,
@@ -107,3 +119,18 @@ class PageExtraction(Page):
             disabled=not st.session_state.enable_download_extraction,
             use_container_width=True,
         )
+
+        # message extraction success/fails
+        if button_extraction_clicked:
+            message = (
+                (
+                    "L'extraction a echouée.\n"
+                    + "Veuillez vérifier que votre fichier de configuration est correct.\n"
+                    + "Si le problème persiste, contactez Sacha Hibon en incluant **tous** les fichiers utilisés."
+                )
+                if st.session_state.extraction_failed
+                else "L'extraction s'est déroulée avec succès."
+            )
+            frontend.helper.text_success_failed(
+                message, st.session_state.extraction_failed
+            )
