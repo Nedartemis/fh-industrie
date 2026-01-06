@@ -78,6 +78,7 @@ class PageExtraction(Page):
                 os.symlink(src=doc.path, dst=dir_extraction / doc.name)
 
             # call the backend for extraction
+            logger.reset_logs()
             try:
                 infos_file_path = extract_infos_from_config_file_and_files_tree(
                     path_config_file=config_file.path,

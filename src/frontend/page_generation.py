@@ -68,6 +68,7 @@ class PageGeneration(Page):
             assert template is not None
 
             # call the backend for generation
+            logger.reset_logs()
             try:
                 generated_file_path = fill_template(
                     infos_path_file=filled_config_file.path,
